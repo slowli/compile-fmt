@@ -2,18 +2,30 @@ use core::{fmt, slice, str};
 
 #[macro_export]
 macro_rules! const_concat {
-    ($capacity:expr => $($arg:expr),+) => {{
-        const __CAPACITY: usize = $capacity;
-        let __arguments: &[$crate::Argument] = &[$($crate::ArgumentWrapper($arg).into_argument(),)+];
+    ($($arg:expr $(=> $fmt:expr)?),+) => {{
+        const __CAPACITY: usize = $crate::const_concat!(@total_capacity $($arg $(=> $fmt)?,)+);
+        let __arguments: &[$crate::Argument] = &[
+            $($crate::ArgumentWrapper($arg).into_argument()$(.with_fmt($fmt))?,)+
+        ];
         $crate::Formatter::<__CAPACITY>::format(__arguments)
     }};
+    (@total_capacity $first_arg:expr $(=> $first_fmt:expr)?, $($arg:expr $(=> $fmt:expr)?,)*) => {
+        $crate::const_concat!(@arg_capacity $first_arg $(=> $first_fmt)?)
+            $(+ $crate::const_concat!(@arg_capacity $arg $(=> $fmt)?))*
+    };
+    (@arg_capacity $arg:expr) => {
+        $crate::ArgumentWrapper($arg).into_argument().formatted_len()
+    };
+    (@arg_capacity $arg:expr => $fmt:expr) => {
+        $crate::Fmt::formatted_len(&$fmt)
+    };
 }
 
 #[macro_export]
 macro_rules! const_assert {
-    ($capacity:expr => $check:expr, $($arg:tt)+) => {{
+    ($check:expr, $($arg:tt)+) => {{
         if !$check {
-            ::core::panic!("{}", $crate::const_concat!($capacity => $($arg)+).as_str());
+            ::core::panic!("{}", $crate::const_concat!($($arg)+).as_str());
         }
     }};
 }
@@ -78,20 +90,20 @@ impl<const CAP: usize> Formatter<CAP> {
     }
 
     const fn format_arg(self, arg: Argument) -> Self {
-        match arg {
-            Argument::Str(s) => self.write_str(s),
-            Argument::Int(value) => self.write_i128(value),
-            Argument::UnsignedInt(value) => self.write_u128(value),
+        match arg.inner {
+            ArgumentInner::Str(s) => self.write_str(s),
+            ArgumentInner::Int(value) => self.write_i128(value),
+            ArgumentInner::UnsignedInt(value) => self.write_u128(value),
         }
     }
 
     pub const fn format(arguments: &[Argument]) -> Self {
-        let necessary_capacity = Argument::total_len(arguments);
-        const_assert!(128 =>
-            CAP >= necessary_capacity,
-            "Insufficient capacity (", CAP, ") provided for formatted string; expected at least ",
-            necessary_capacity
-        );
+        // Assert argument capacities first.
+        let mut arg_i = 0;
+        while arg_i < arguments.len() {
+            arguments[arg_i].assert_width(arg_i);
+            arg_i += 1;
+        }
 
         let mut this = Self::new();
         let mut arg_i = 0;
@@ -112,29 +124,56 @@ impl<const CAP: usize> Formatter<CAP> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Argument {
+enum ArgumentInner {
     Str(&'static str),
     Int(i128),
     UnsignedInt(u128),
 }
 
-impl Argument {
+impl ArgumentInner {
     const fn formatted_len(&self) -> usize {
         match self {
             Self::Str(s) => s.len(),
-            Self::Int(i) => (*i < 0) as usize + log_10_ceil(i.unsigned_abs()),
-            Self::UnsignedInt(i) => log_10_ceil(*i),
+            Self::Int(value) => (*value < 0) as usize + log_10_ceil(value.unsigned_abs()),
+            Self::UnsignedInt(value) => log_10_ceil(*value),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Argument {
+    inner: ArgumentInner,
+    fmt: Option<Fmt>,
+}
+
+impl Argument {
+    /// Returns the formatted length of the argument in bytes.
+    #[doc(hidden)]
+    pub const fn formatted_len(&self) -> usize {
+        if let Some(fmt) = &self.fmt {
+            fmt.formatted_len()
+        } else {
+            self.inner.formatted_len()
         }
     }
 
-    pub const fn total_len(args: &[Self]) -> usize {
-        let mut total_len = 0;
-        let mut arg_i = 0;
-        while arg_i < args.len() {
-            total_len += args[arg_i].formatted_len();
-            arg_i += 1;
+    const fn assert_width(&self, arg_index: usize) {
+        if let Some(fmt) = &self.fmt {
+            let fmt_len = fmt.formatted_len();
+            let inherent_len = self.inner.formatted_len();
+            const_assert!(
+                fmt_len >= inherent_len,
+                "Argument #", arg_index => Fmt::of::<usize>(),
+                " has insufficient byte width (", fmt_len => Fmt::of::<usize>(),
+                "); required at least ", inherent_len => Fmt::of::<usize>()
+            );
         }
-        total_len
+    }
+
+    #[must_use]
+    pub const fn with_fmt(mut self, fmt: Fmt) -> Self {
+        self.fmt = Some(fmt);
+        self
     }
 }
 
@@ -156,13 +195,19 @@ pub struct ArgumentWrapper<T>(pub T);
 
 impl ArgumentWrapper<&'static str> {
     pub const fn into_argument(self) -> Argument {
-        Argument::Str(self.0)
+        Argument {
+            inner: ArgumentInner::Str(self.0),
+            fmt: None,
+        }
     }
 }
 
 impl ArgumentWrapper<i128> {
     pub const fn into_argument(self) -> Argument {
-        Argument::Int(self.0)
+        Argument {
+            inner: ArgumentInner::Int(self.0),
+            fmt: None,
+        }
     }
 }
 
@@ -170,7 +215,10 @@ macro_rules! impl_argument_wrapper_for_int {
     ($int:ty) => {
         impl ArgumentWrapper<$int> {
             pub const fn into_argument(self) -> Argument {
-                Argument::Int(self.0 as i128)
+                Argument {
+                    inner: ArgumentInner::Int(self.0 as i128),
+                    fmt: None,
+                }
             }
         }
     };
@@ -184,7 +232,10 @@ impl_argument_wrapper_for_int!(isize);
 
 impl ArgumentWrapper<u128> {
     pub const fn into_argument(self) -> Argument {
-        Argument::UnsignedInt(self.0)
+        Argument {
+            inner: ArgumentInner::UnsignedInt(self.0),
+            fmt: None,
+        }
     }
 }
 
@@ -192,7 +243,10 @@ macro_rules! impl_argument_wrapper_for_uint {
     ($int:ty) => {
         impl ArgumentWrapper<$int> {
             pub const fn into_argument(self) -> Argument {
-                Argument::UnsignedInt(self.0 as u128)
+                Argument {
+                    inner: ArgumentInner::UnsignedInt(self.0 as u128),
+                    fmt: None,
+                }
             }
         }
     };
@@ -204,6 +258,59 @@ impl_argument_wrapper_for_uint!(u32);
 impl_argument_wrapper_for_uint!(u64);
 impl_argument_wrapper_for_uint!(usize);
 
+#[derive(Debug, Clone, Copy)]
+pub struct Fmt {
+    width: usize,
+}
+
+impl Fmt {
+    pub const fn width(width: usize) -> Self {
+        Self { width }
+    }
+
+    pub const fn of<T: MaxWidth>() -> Self {
+        Self {
+            width: T::MAX_WIDTH,
+        }
+    }
+
+    /// Returns the formatted length of the argument in bytes.
+    #[doc(hidden)]
+    pub const fn formatted_len(&self) -> usize {
+        self.width
+    }
+}
+
+pub trait MaxWidth {
+    const MAX_WIDTH: usize;
+}
+
+macro_rules! impl_max_width_for_uint {
+    ($($uint:ty),+) => {
+        $(
+        impl MaxWidth for $uint {
+            const MAX_WIDTH: usize =
+                ArgumentWrapper(Self::MAX).into_argument().formatted_len();
+        }
+        )+
+    };
+}
+
+impl_max_width_for_uint!(u8, u16, u32, u64, u128, usize);
+
+macro_rules! impl_max_width_for_int {
+    ($($int:ty),+) => {
+        $(
+        impl MaxWidth for $int {
+            const MAX_WIDTH: usize =
+                ArgumentWrapper(Self::MIN).into_argument().formatted_len();
+        }
+        )+
+    };
+}
+
+impl_max_width_for_int!(i8, i16, i32, i64, i128, isize);
+
 #[cfg(test)]
 mod tests {
     use rand::{rngs::StdRng, Rng, SeedableRng};
@@ -211,6 +318,23 @@ mod tests {
     use super::*;
 
     const THRESHOLD: usize = 32;
+
+    #[test]
+    fn max_length_bound_is_correct() {
+        assert_eq!(u8::MAX_WIDTH, u8::MAX.to_string().len());
+        assert_eq!(u16::MAX_WIDTH, u16::MAX.to_string().len());
+        assert_eq!(u32::MAX_WIDTH, u32::MAX.to_string().len());
+        assert_eq!(u64::MAX_WIDTH, u64::MAX.to_string().len());
+        assert_eq!(u128::MAX_WIDTH, u128::MAX.to_string().len());
+        assert_eq!(usize::MAX_WIDTH, usize::MAX.to_string().len());
+
+        assert_eq!(i8::MAX_WIDTH, i8::MIN.to_string().len());
+        assert_eq!(i16::MAX_WIDTH, i16::MIN.to_string().len());
+        assert_eq!(i32::MAX_WIDTH, i32::MIN.to_string().len());
+        assert_eq!(i64::MAX_WIDTH, i64::MIN.to_string().len());
+        assert_eq!(i128::MAX_WIDTH, i128::MIN.to_string().len());
+        assert_eq!(isize::MAX_WIDTH, isize::MIN.to_string().len());
+    }
 
     #[test]
     fn length_estimation_for_small_ints() {
@@ -320,7 +444,7 @@ mod tests {
     #[test]
     fn basics() {
         const TEST: Formatter<32> =
-            const_concat!(32 => "expected ", 1_usize, " to be greater than ", THRESHOLD);
+            const_concat!("expected ", 1_usize, " to be greater than ", THRESHOLD);
         assert_eq!(TEST.to_string(), "expected 1 to be greater than 32");
     }
 
@@ -328,12 +452,15 @@ mod tests {
     #[should_panic(expected = "expected 1 to be greater than 32")]
     fn assertion() {
         let value = 1;
-        const_assert!(64 => value > THRESHOLD, "expected ", value, " to be greater than ", THRESHOLD);
+        const_assert!(
+            value > THRESHOLD,
+            "expected ", value => Fmt::width(4), " to be greater than ", THRESHOLD
+        );
     }
 
     #[test]
-    #[should_panic(expected = "capacity (8) provided for formatted string; expected at least 32")]
+    #[should_panic(expected = "Argument #1 has insufficient byte width (4); required at least 6")]
     fn insufficient_capacity() {
-        const_concat!(8 => "expected ", 1_usize, " to be greater than ", THRESHOLD);
+        const_concat!("expected ", 111111_usize => Fmt::width(4), " to be greater than ", THRESHOLD);
     }
 }

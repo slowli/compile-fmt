@@ -2,30 +2,86 @@
 
 /// Formatting specification for an [`Argument`](crate::Argument).
 ///
-/// FIXME: more details
+/// A format is necessary to specify for *dynamic* arguments of [`const_args!`](crate::const_args)
+/// and related macros (i.e., for arguments that are not constants). For now, the only meaningful
+/// format customization is provided for strings (`&str`). All other arguments have the only
+/// available format that can be created using [`fmt()`].
+///
+/// # Examples
+///
+/// ## Truncating a string to a certain width
+///
+/// ```
+/// use const_fmt::{const_args, fmt, Fmt, ConstArgs};
+///
+/// // FIXME: should work with non-static strings
+/// const fn truncate(s: &'static str) -> ConstArgs<91> {
+///     const_args!(
+///         "Truncated string: '", s => Fmt::truncated(8),
+///         "', original length: ", s.len() => fmt::<usize>()
+///     )
+/// }
+///
+/// let s = truncate("very long string indeed");
+/// assert_eq!(
+///     s.as_ref(),
+///     "Truncated string: 'very lon', original length: 23"
+/// );
+/// ```
 #[derive(Debug, Clone, Copy)]
-pub struct Fmt {
-    width: usize,
+pub struct Fmt<T: FormatArgument> {
+    byte_width: usize,
+    pub(crate) details: T::Details,
 }
 
-impl Fmt {
-    /// Creates a format with the specified max byte width.
-    pub const fn width(width: usize) -> Self {
-        Self { width }
+/// Creates a default format for a type that has known bounded formatting width.
+pub const fn fmt<T>() -> Fmt<T>
+where
+    T: FormatArgument<Details = ()> + MaxWidth,
+{
+    Fmt {
+        byte_width: T::MAX_WIDTH,
+        details: (),
     }
+}
 
-    /// Creates a format for the specified type.
-    pub const fn of<T: MaxWidth>() -> Self {
+impl Fmt<&str> {
+    /// Creates a format that will truncate the value to the specified max **char** width.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `width` is zero.
+    pub const fn truncated(truncate_at: usize) -> Self {
+        assert!(truncate_at > 0, "Truncation width must be positive");
         Self {
-            width: T::MAX_WIDTH,
+            byte_width: truncate_at * char::MAX_WIDTH,
+            details: StrFormat { truncate_at },
         }
     }
+}
 
+impl<T: FormatArgument> Fmt<T> {
     /// Returns the formatted length of the argument in bytes.
     #[doc(hidden)] // only used by macros
     pub const fn formatted_len(&self) -> usize {
-        self.width
+        self.byte_width
     }
+}
+
+/// Type that can be formatted. Implemented for standard integer types, `&str` and `char`.
+pub trait FormatArgument {
+    /// Formatting specification for the type.
+    type Details: 'static + Copy;
+}
+
+impl FormatArgument for &str {
+    type Details = StrFormat;
+}
+
+/// Formatting details for strings.
+#[derive(Debug, Clone, Copy)]
+pub struct StrFormat {
+    pub(crate) truncate_at: usize,
 }
 
 /// Type that has a known upper boundary for the formatted length.
@@ -39,7 +95,11 @@ macro_rules! impl_max_width_for_uint {
         $(
         impl MaxWidth for $uint {
             const MAX_WIDTH: usize =
-                crate::ArgumentWrapper(Self::MAX).into_argument().formatted_len();
+                crate::ArgumentWrapper::new(Self::MAX).into_argument().formatted_len();
+        }
+
+        impl FormatArgument for $uint {
+            type Details = ();
         }
         )+
     };
@@ -52,7 +112,11 @@ macro_rules! impl_max_width_for_int {
         $(
         impl MaxWidth for $int {
             const MAX_WIDTH: usize =
-                crate::ArgumentWrapper(Self::MIN).into_argument().formatted_len();
+                crate::ArgumentWrapper::new(Self::MIN).into_argument().formatted_len();
+        }
+
+        impl FormatArgument for $int {
+            type Details = ();
         }
         )+
     };
@@ -62,6 +126,10 @@ impl_max_width_for_int!(i8, i16, i32, i64, i128, isize);
 
 impl MaxWidth for char {
     const MAX_WIDTH: usize = 4;
+}
+
+impl FormatArgument for char {
+    type Details = ();
 }
 
 #[cfg(test)]

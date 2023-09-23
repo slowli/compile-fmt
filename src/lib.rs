@@ -22,7 +22,7 @@ mod macros;
 
 pub use crate::{
     argument::{Argument, ArgumentWrapper},
-    format::{Fmt, MaxWidth},
+    format::{fmt, Fmt, FormatArgument, MaxWidth, StrFormat},
 };
 
 /// Formatted string returned by the [`const_args!`] macro, similar to [`Arguments`](fmt::Arguments).
@@ -41,6 +41,12 @@ impl<const CAP: usize> fmt::Display for ConstArgs<CAP> {
     }
 }
 
+impl<const CAP: usize> AsRef<str> for ConstArgs<CAP> {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
 impl<const CAP: usize> ConstArgs<CAP> {
     const fn new() -> Self {
         Self {
@@ -49,13 +55,21 @@ impl<const CAP: usize> ConstArgs<CAP> {
         }
     }
 
-    const fn write_str(self, s: &str) -> Self {
-        let new_len = self.len + s.len();
+    const fn write_str(self, s: &str, fmt: Option<StrFormat>) -> Self {
+        let truncated_str_bytes = match fmt {
+            Some(StrFormat { truncate_at }) => first_chars(s, truncate_at),
+            _ => s.as_bytes(),
+        };
+        self.write_str_bytes(truncated_str_bytes)
+    }
+
+    const fn write_str_bytes(self, s_bytes: &[u8]) -> Self {
+        let new_len = self.len + s_bytes.len();
         let mut buffer = self.buffer;
         let mut pos = self.len;
 
         while pos < new_len {
-            buffer[pos] = s.as_bytes()[pos - self.len];
+            buffer[pos] = s_bytes[pos - self.len];
             pos += 1;
         }
         Self {
@@ -106,13 +120,6 @@ impl<const CAP: usize> ConstArgs<CAP> {
 
     /// Formats the provided sequence of [`Argument`]s.
     pub const fn format(arguments: &[Argument]) -> Self {
-        // Assert argument capacities first.
-        let mut arg_i = 0;
-        while arg_i < arguments.len() {
-            arguments[arg_i].assert_width(arg_i);
-            arg_i += 1;
-        }
-
         let mut this = Self::new();
         let mut arg_i = 0;
         while arg_i < arguments.len() {
@@ -131,6 +138,30 @@ impl<const CAP: usize> ConstArgs<CAP> {
             str::from_utf8_unchecked(written_slice)
         }
     }
+}
+
+/// Returns bytes corresponding to first `char_count` chars in `s`. If `s` contains less chars,
+/// it's returned in full.
+const fn first_chars(s: &str, mut char_count: usize) -> &[u8] {
+    let s_bytes = s.as_bytes();
+    let mut pos = 0;
+    while pos < s_bytes.len() && char_count > 0 {
+        if s_bytes[pos] < 128 {
+            pos += 1;
+        } else if s_bytes[pos] >> 5 == 0b_110 {
+            pos += 2;
+        } else if s_bytes[pos] >> 4 == 0b_1110 {
+            pos += 3;
+        } else if s_bytes[pos] >> 3 == 0b_11110 {
+            pos += 4;
+        } else {
+            unreachable!(); // Invalid UTF-8 encoding
+        }
+        char_count -= 1;
+    }
+    assert!(pos <= s_bytes.len(), "Invalid UTF-8 encoding");
+    // SAFETY: Slicing a byte slice with length being in bounds is safe.
+    unsafe { slice::from_raw_parts(s_bytes.as_ptr(), pos) }
 }
 
 #[cfg(test)]
@@ -157,8 +188,49 @@ mod tests {
     #[test]
     fn using_dynamic_chars() {
         for char in ['i', 'ß', 'ℝ', '💣'] {
-            let s = const_args!("char: ", char => Fmt::of::<char>(), "!");
+            let s = const_args!("char: ", char => fmt::<char>(), "!");
             assert_eq!(s.as_str(), alloc::format!("char: {char}!"));
+        }
+    }
+
+    #[test]
+    fn truncating_strings() {
+        let arg = "dynamic";
+        let s = const_args!("string: '", arg => Fmt::truncated(3), '\'');
+        assert_eq!(s.as_str(), "string: 'dyn'");
+
+        let arg = "Tℝ💣eßt";
+        let s = const_args!("string: '", arg => Fmt::truncated(2), '\'');
+        assert_eq!(s.as_str(), "string: 'Tℝ'");
+        let s = const_args!("string: '", arg => Fmt::truncated(3), '\'');
+        assert_eq!(s.as_str(), "string: 'Tℝ💣'");
+        let s = const_args!("string: '", arg => Fmt::truncated(4), '\'');
+        assert_eq!(s.as_str(), "string: 'Tℝ💣e'");
+        let s = const_args!("string: '", arg => Fmt::truncated(5), '\'');
+        assert_eq!(s.as_str(), "string: 'Tℝ💣eß'");
+    }
+
+    #[test]
+    fn extracting_first_chars_from_ascii_string() {
+        assert_eq!(first_chars("Test", 1), b"T");
+        assert_eq!(first_chars("Test", 2), b"Te");
+        assert_eq!(first_chars("Test", 3), b"Tes");
+        for char_count in [4, 5, 8, 32, 128] {
+            assert_eq!(first_chars("Test", char_count), b"Test");
+        }
+    }
+
+    #[test]
+    fn extracting_first_chars_from_utf8_string() {
+        assert_eq!(first_chars("💣Test", 1), "💣".as_bytes());
+        assert_eq!(first_chars("💣Test", 2), "💣T".as_bytes());
+        assert_eq!(first_chars("T💣est", 3), "T💣e".as_bytes());
+        assert_eq!(first_chars("T💣eßtℝ", 4), "T💣eß".as_bytes());
+        assert_eq!(first_chars("Tℝ💣eßt", 4), "Tℝ💣e".as_bytes());
+        assert_eq!(first_chars("Tℝ💣eßt", 5), "Tℝ💣eß".as_bytes());
+
+        for char_count in [6, 8, 32, 128] {
+            assert_eq!(first_chars("Tℝ💣eßt", char_count), "Tℝ💣eßt".as_bytes());
         }
     }
 
@@ -168,13 +240,7 @@ mod tests {
         let value = 1;
         const_assert!(
             value > THRESHOLD,
-            "expected ", value => Fmt::width(4), " to be greater than ", THRESHOLD
+            "expected ", value => fmt::<usize>(), " to be greater than ", THRESHOLD
         );
-    }
-
-    #[test]
-    #[should_panic(expected = "Argument #1 has insufficient byte width (4); required at least 6")]
-    fn insufficient_capacity() {
-        const_args!("expected ", 111_111_usize => Fmt::width(4), " to be greater than ", THRESHOLD);
     }
 }

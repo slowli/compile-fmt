@@ -1,10 +1,14 @@
 //! [`Argument`] and related types.
 
-use crate::{format::Fmt, ConstArgs};
+use crate::{
+    first_chars,
+    format::{Fmt, FormatArgument, StrFormat},
+    ConstArgs,
+};
 
 #[derive(Debug, Clone, Copy)]
 enum ArgumentInner {
-    Str(&'static str),
+    Str(&'static str, Option<StrFormat>),
     Char(char),
     Int(i128),
     UnsignedInt(u128),
@@ -13,7 +17,8 @@ enum ArgumentInner {
 impl ArgumentInner {
     const fn formatted_len(&self) -> usize {
         match self {
-            Self::Str(s) => s.len(),
+            Self::Str(s, None) => s.len(),
+            Self::Str(s, Some(fmt)) => first_chars(s, fmt.truncate_at).len(),
             Self::Char(c) => c.len_utf8(),
             Self::Int(value) => (*value < 0) as usize + log_10_ceil(value.unsigned_abs()),
             Self::UnsignedInt(value) => log_10_ceil(*value),
@@ -25,39 +30,13 @@ impl ArgumentInner {
 #[derive(Debug, Clone, Copy)]
 pub struct Argument {
     inner: ArgumentInner,
-    fmt: Option<Fmt>,
 }
 
 impl Argument {
     /// Returns the formatted length of the argument in bytes.
     #[doc(hidden)] // only used by crate macros
     pub const fn formatted_len(&self) -> usize {
-        if let Some(fmt) = &self.fmt {
-            fmt.formatted_len()
-        } else {
-            self.inner.formatted_len()
-        }
-    }
-
-    pub(crate) const fn assert_width(&self, arg_index: usize) {
-        if let Some(fmt) = &self.fmt {
-            let fmt_len = fmt.formatted_len();
-            let inherent_len = self.inner.formatted_len();
-            crate::const_assert!(
-                fmt_len >= inherent_len,
-                "Argument #", arg_index => Fmt::of::<usize>(),
-                " has insufficient byte width (", fmt_len => Fmt::of::<usize>(),
-                "); required at least ", inherent_len => Fmt::of::<usize>()
-            );
-        }
-    }
-
-    /// Specifies the format for this argument.
-    #[must_use]
-    #[doc(hidden)] // only used by crate macros
-    pub const fn with_fmt(mut self, fmt: Fmt) -> Self {
-        self.fmt = Some(fmt);
-        self
+        self.inner.formatted_len()
     }
 }
 
@@ -95,13 +74,18 @@ impl<const CAP: usize> ConstArgs<CAP> {
     }
 
     const fn write_i128(self, value: i128) -> Self {
-        let this = if value < 0 { self.write_str("-") } else { self };
+        let this = if value < 0 {
+            self.write_char('-')
+        } else {
+            self
+        };
         this.write_u128(value.unsigned_abs())
     }
 
     pub(crate) const fn format_arg(self, arg: Argument) -> Self {
         match arg.inner {
-            ArgumentInner::Str(s) => self.write_str(s),
+            ArgumentInner::Str(s, fmt) => self.write_str(s, fmt),
+            // chars and ints are not affected by format so far (i.e., not truncated)
             ArgumentInner::Char(c) => self.write_char(c),
             ArgumentInner::Int(value) => self.write_i128(value),
             ArgumentInner::UnsignedInt(value) => self.write_u128(value),
@@ -111,14 +95,27 @@ impl<const CAP: usize> ConstArgs<CAP> {
 
 /// Wrapper for an admissible argument type allowing to convert it to an [`Argument`] in compile time.
 #[derive(Debug)]
-pub struct ArgumentWrapper<T>(pub T);
+pub struct ArgumentWrapper<T: FormatArgument>(T, Option<T::Details>);
+
+impl<T: FormatArgument> ArgumentWrapper<T> {
+    #[doc(hidden)] // used by crate macros
+    pub const fn new(value: T) -> Self {
+        Self(value, None)
+    }
+
+    #[must_use]
+    #[doc(hidden)] // used by crate macros
+    pub const fn with_fmt(mut self, fmt: &Fmt<T>) -> Self {
+        self.1 = Some(fmt.details);
+        self
+    }
+}
 
 impl ArgumentWrapper<&'static str> {
     /// Performs the conversion.
     pub const fn into_argument(self) -> Argument {
         Argument {
-            inner: ArgumentInner::Str(self.0),
-            fmt: None,
+            inner: ArgumentInner::Str(self.0, self.1),
         }
     }
 }
@@ -128,7 +125,6 @@ impl ArgumentWrapper<i128> {
     pub const fn into_argument(self) -> Argument {
         Argument {
             inner: ArgumentInner::Int(self.0),
-            fmt: None,
         }
     }
 }
@@ -140,7 +136,6 @@ macro_rules! impl_argument_wrapper_for_int {
             pub const fn into_argument(self) -> Argument {
                 Argument {
                     inner: ArgumentInner::Int(self.0 as i128),
-                    fmt: None,
                 }
             }
         }
@@ -158,19 +153,17 @@ impl ArgumentWrapper<u128> {
     pub const fn into_argument(self) -> Argument {
         Argument {
             inner: ArgumentInner::UnsignedInt(self.0),
-            fmt: None,
         }
     }
 }
 
 macro_rules! impl_argument_wrapper_for_uint {
-    ($int:ty) => {
-        impl ArgumentWrapper<$int> {
+    ($uint:ty) => {
+        impl ArgumentWrapper<$uint> {
             /// Performs the conversion.
             pub const fn into_argument(self) -> Argument {
                 Argument {
                     inner: ArgumentInner::UnsignedInt(self.0 as u128),
-                    fmt: None,
                 }
             }
         }
@@ -188,7 +181,6 @@ impl ArgumentWrapper<char> {
     pub const fn into_argument(self) -> Argument {
         Argument {
             inner: ArgumentInner::Char(self.0),
-            fmt: None,
         }
     }
 }
@@ -205,28 +197,28 @@ mod tests {
     fn length_estimation_for_small_ints() {
         for i in 0_u8..=u8::MAX {
             assert_eq!(
-                ArgumentWrapper(i).into_argument().formatted_len(),
+                ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
                 "Formatted length estimated incorrectly for {i}"
             );
         }
         for i in 0_u16..=u16::MAX {
             assert_eq!(
-                ArgumentWrapper(i).into_argument().formatted_len(),
+                ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
                 "Formatted length estimated incorrectly for {i}"
             );
         }
         for i in i8::MIN..=i8::MAX {
             assert_eq!(
-                ArgumentWrapper(i).into_argument().formatted_len(),
+                ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
                 "Formatted length estimated incorrectly for {i}"
             );
         }
         for i in i16::MIN..=i16::MAX {
             assert_eq!(
-                ArgumentWrapper(i).into_argument().formatted_len(),
+                ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
                 "Formatted length estimated incorrectly for {i}"
             );
@@ -242,7 +234,7 @@ mod tests {
         for _ in 0..SAMPLE_COUNT {
             let i: u32 = rng.gen();
             assert_eq!(
-                ArgumentWrapper(i).into_argument().formatted_len(),
+                ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
                 "Formatted length estimated incorrectly for {i}"
             );
@@ -250,7 +242,7 @@ mod tests {
         for _ in 0..SAMPLE_COUNT {
             let i: u64 = rng.gen();
             assert_eq!(
-                ArgumentWrapper(i).into_argument().formatted_len(),
+                ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
                 "Formatted length estimated incorrectly for {i}"
             );
@@ -258,7 +250,7 @@ mod tests {
         for _ in 0..SAMPLE_COUNT {
             let i: u128 = rng.gen();
             assert_eq!(
-                ArgumentWrapper(i).into_argument().formatted_len(),
+                ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
                 "Formatted length estimated incorrectly for {i}"
             );
@@ -266,7 +258,7 @@ mod tests {
         for _ in 0..SAMPLE_COUNT {
             let i: usize = rng.gen();
             assert_eq!(
-                ArgumentWrapper(i).into_argument().formatted_len(),
+                ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
                 "Formatted length estimated incorrectly for {i}"
             );
@@ -275,7 +267,7 @@ mod tests {
         for _ in 0..SAMPLE_COUNT {
             let i: i32 = rng.gen();
             assert_eq!(
-                ArgumentWrapper(i).into_argument().formatted_len(),
+                ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
                 "Formatted length estimated incorrectly for {i}"
             );
@@ -283,7 +275,7 @@ mod tests {
         for _ in 0..SAMPLE_COUNT {
             let i: i64 = rng.gen();
             assert_eq!(
-                ArgumentWrapper(i).into_argument().formatted_len(),
+                ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
                 "Formatted length estimated incorrectly for {i}"
             );
@@ -291,7 +283,7 @@ mod tests {
         for _ in 0..SAMPLE_COUNT {
             let i: i128 = rng.gen();
             assert_eq!(
-                ArgumentWrapper(i).into_argument().formatted_len(),
+                ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
                 "Formatted length estimated incorrectly for {i}"
             );
@@ -299,7 +291,7 @@ mod tests {
         for _ in 0..SAMPLE_COUNT {
             let i: isize = rng.gen();
             assert_eq!(
-                ArgumentWrapper(i).into_argument().formatted_len(),
+                ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
                 "Formatted length estimated incorrectly for {i}"
             );

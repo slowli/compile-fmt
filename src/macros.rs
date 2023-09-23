@@ -38,12 +38,12 @@
 /// ## Usage in `const fn` with dynamic args
 ///
 /// ```
-/// use const_fmt::{const_args, Fmt};
+/// use const_fmt::{const_args, fmt};
 /// use std::fmt;
 ///
 /// const fn create_args(x: usize) -> impl fmt::Display {
 ///     let args = const_args!(
-///         "2 * x + 3 = ", 2 * x + 3 => Fmt::of::<usize>()
+///         "2 * x + 3 = ", 2 * x + 3 => fmt::<usize>()
 ///     );
 ///     // ^ `args` are evaluated in compile time, but are not a constant.
 ///     // They can still be useful e.g. for creating compile-time panic messages.
@@ -59,7 +59,7 @@ macro_rules! const_args {
     ($($arg:expr $(=> $fmt:expr)?),+) => {{
         const __CAPACITY: usize = $crate::__const_args_impl!(@total_capacity $($arg $(=> $fmt)?,)+);
         let __arguments: &[$crate::Argument] = &[
-            $($crate::ArgumentWrapper($arg).into_argument()$(.with_fmt($fmt))?,)+
+            $($crate::ArgumentWrapper::new($arg)$(.with_fmt(&$fmt))?.into_argument(),)+
         ];
         $crate::ConstArgs::<__CAPACITY>::format(__arguments)
     }};
@@ -73,7 +73,7 @@ macro_rules! __const_args_impl {
             $(+ $crate::__const_args_impl!(@arg_capacity $arg $(=> $fmt)?))*
     };
     (@arg_capacity $arg:expr) => {
-        $crate::ArgumentWrapper($arg).into_argument().formatted_len()
+        $crate::ArgumentWrapper::new($arg).into_argument().formatted_len()
     };
     (@arg_capacity $arg:expr => $fmt:expr) => {
         $crate::Fmt::formatted_len(&$fmt)
@@ -88,7 +88,7 @@ macro_rules! __const_args_impl {
 /// # Examples
 ///
 /// ```
-/// use const_fmt::{const_assert, Fmt};
+/// use const_fmt::{const_assert, fmt};
 ///
 /// const fn check_args(x: usize, s: &str) {
 ///     const MAX_STR_LEN: usize = 10;
@@ -96,12 +96,12 @@ macro_rules! __const_args_impl {
 ///     const_assert!(
 ///         x < 1_000,
 ///         "`x` should be less than 1000 (got: ",
-///         x => Fmt::of::<usize>(), ")"
+///         x => fmt::<usize>(), ")"
 ///     );
 ///     const_assert!(
 ///         s.len() <= MAX_STR_LEN,
 ///         "String is too long (expected at most ", MAX_STR_LEN,
-///         " bytes; got ", s.len() => Fmt::of::<usize>(), " bytes)"
+///         " bytes; got ", s.len() => fmt::<usize>(), " bytes)"
 ///     );
 ///     // main logic...
 /// }

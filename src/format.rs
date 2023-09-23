@@ -60,6 +60,10 @@ macro_rules! impl_max_width_for_int {
 
 impl_max_width_for_int!(i8, i16, i32, i64, i128, isize);
 
+impl MaxWidth for char {
+    const MAX_WIDTH: usize = 4;
+}
+
 #[cfg(test)]
 mod tests {
     use alloc::string::ToString;

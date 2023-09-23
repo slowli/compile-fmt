@@ -9,7 +9,8 @@
 ///
 /// - Signed and unsigned integers (`u8`, `i8`, `u16`, `i16`, `u32`, `i32`, `u64`, `i64`, `u128`,
 ///   `i128`, `usize`, `isize`)
-/// - Strings (`&str`).
+/// - Strings (`&str`)
+/// - Chars (`char`)
 ///
 /// Due to how Rust type inference works, you might need to specify the type suffix for integer
 /// literals (e.g., `42_usize` instead of `42`).

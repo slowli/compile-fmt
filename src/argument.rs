@@ -5,6 +5,7 @@ use crate::{format::Fmt, ConstArgs};
 #[derive(Debug, Clone, Copy)]
 enum ArgumentInner {
     Str(&'static str),
+    Char(char),
     Int(i128),
     UnsignedInt(u128),
 }
@@ -13,6 +14,7 @@ impl ArgumentInner {
     const fn formatted_len(&self) -> usize {
         match self {
             Self::Str(s) => s.len(),
+            Self::Char(c) => c.len_utf8(),
             Self::Int(value) => (*value < 0) as usize + log_10_ceil(value.unsigned_abs()),
             Self::UnsignedInt(value) => log_10_ceil(*value),
         }
@@ -100,6 +102,7 @@ impl<const CAP: usize> ConstArgs<CAP> {
     pub(crate) const fn format_arg(self, arg: Argument) -> Self {
         match arg.inner {
             ArgumentInner::Str(s) => self.write_str(s),
+            ArgumentInner::Char(c) => self.write_char(c),
             ArgumentInner::Int(value) => self.write_i128(value),
             ArgumentInner::UnsignedInt(value) => self.write_u128(value),
         }
@@ -179,6 +182,16 @@ impl_argument_wrapper_for_uint!(u16);
 impl_argument_wrapper_for_uint!(u32);
 impl_argument_wrapper_for_uint!(u64);
 impl_argument_wrapper_for_uint!(usize);
+
+impl ArgumentWrapper<char> {
+    /// Performs the conversion.
+    pub const fn into_argument(self) -> Argument {
+        Argument {
+            inner: ArgumentInner::Char(self.0),
+            fmt: None,
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {

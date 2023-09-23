@@ -64,6 +64,46 @@ impl<const CAP: usize> ConstArgs<CAP> {
         }
     }
 
+    /// Writes a char to this string. Largely copied from the standard library with minor changes.
+    #[allow(clippy::cast_possible_truncation)] // false positive
+    const fn write_char(self, c: char) -> Self {
+        const TAG_CONT: u8 = 0b_1000_0000;
+        const TAG_TWO_BYTES: u8 = 0b_1100_0000;
+        const TAG_THREE_BYTES: u8 = 0b_1110_0000;
+        const TAG_FOUR_BYTES: u8 = 0b_1111_0000;
+
+        let new_len = self.len + c.len_utf8();
+        let mut buffer = self.buffer;
+        let pos = self.len;
+        let code = c as u32;
+        match c.len_utf8() {
+            1 => {
+                buffer[pos] = code as u8;
+            }
+            2 => {
+                buffer[pos] = (code >> 6 & 0x_1f) as u8 | TAG_TWO_BYTES;
+                buffer[pos + 1] = (code & 0x_3f) as u8 | TAG_CONT;
+            }
+            3 => {
+                buffer[pos] = (code >> 12 & 0x_0f) as u8 | TAG_THREE_BYTES;
+                buffer[pos + 1] = (code >> 6 & 0x_3f) as u8 | TAG_CONT;
+                buffer[pos + 2] = (code & 0x_3f) as u8 | TAG_CONT;
+            }
+            4 => {
+                buffer[pos] = (code >> 18 & 0x_07) as u8 | TAG_FOUR_BYTES;
+                buffer[pos + 1] = (code >> 12 & 0x_3f) as u8 | TAG_CONT;
+                buffer[pos + 2] = (code >> 6 & 0x_3f) as u8 | TAG_CONT;
+                buffer[pos + 3] = (code & 0x_3f) as u8 | TAG_CONT;
+            }
+            _ => unreachable!(),
+        }
+
+        Self {
+            buffer,
+            len: new_len,
+        }
+    }
+
     /// Formats the provided sequence of [`Argument`]s.
     pub const fn format(arguments: &[Argument]) -> Self {
         // Assert argument capacities first.
@@ -106,6 +146,20 @@ mod tests {
         const TEST: ConstArgs<32> =
             const_args!("expected ", 1_usize, " to be greater than ", THRESHOLD);
         assert_eq!(TEST.to_string(), "expected 1 to be greater than 32");
+    }
+
+    #[test]
+    fn using_chars() {
+        const CHARS: ConstArgs<11> = const_args!('H', 'i', 'ß', 'ℝ', '💣');
+        assert_eq!(CHARS.to_string(), "Hißℝ💣");
+    }
+
+    #[test]
+    fn using_dynamic_chars() {
+        for char in ['i', 'ß', 'ℝ', '💣'] {
+            let s = const_args!("char: ", char => Fmt::of::<char>(), "!");
+            assert_eq!(s.as_str(), alloc::format!("char: {char}!"));
+        }
     }
 
     #[test]

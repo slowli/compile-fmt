@@ -1,4 +1,6 @@
 //! Compile-time formatting.
+//!
+//! FIXME: use cases, impl details, examples
 
 #![no_std]
 // Linter settings.
@@ -23,20 +25,23 @@ pub use crate::{
     format::{Fmt, MaxWidth},
 };
 
-/// Formatter returned by the [`const_concat!`] macro.
+/// Formatted string returned by the [`const_args!`] macro, similar to [`Arguments`](fmt::Arguments).
+///
+/// The type parameter specifies the compile-time upper boundary of the formatted string length in bytes.
+/// It is not necessarily equal to the actual byte length of the formatted string.
 #[derive(Debug)]
-pub struct Formatter<const CAP: usize> {
+pub struct ConstArgs<const CAP: usize> {
     buffer: [u8; CAP],
     len: usize,
 }
 
-impl<const CAP: usize> fmt::Display for Formatter<CAP> {
+impl<const CAP: usize> fmt::Display for ConstArgs<CAP> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(self.as_str())
     }
 }
 
-impl<const CAP: usize> Formatter<CAP> {
+impl<const CAP: usize> ConstArgs<CAP> {
     const fn new() -> Self {
         Self {
             buffer: [0_u8; CAP],
@@ -82,7 +87,7 @@ impl<const CAP: usize> Formatter<CAP> {
         unsafe {
             // SAFETY: This is equivalent to `&self.buffer[..self.len]`, only works in compile time.
             let written_slice = slice::from_raw_parts(self.buffer.as_ptr(), self.len);
-            // SAFETY: Safe by construction; written bytes form a valid `str`
+            // SAFETY: Safe by construction; written bytes form a valid `str`.
             str::from_utf8_unchecked(written_slice)
         }
     }
@@ -98,8 +103,8 @@ mod tests {
 
     #[test]
     fn basics() {
-        const TEST: Formatter<32> =
-            const_concat!("expected ", 1_usize, " to be greater than ", THRESHOLD);
+        const TEST: ConstArgs<32> =
+            const_args!("expected ", 1_usize, " to be greater than ", THRESHOLD);
         assert_eq!(TEST.to_string(), "expected 1 to be greater than 32");
     }
 
@@ -116,6 +121,6 @@ mod tests {
     #[test]
     #[should_panic(expected = "Argument #1 has insufficient byte width (4); required at least 6")]
     fn insufficient_capacity() {
-        const_concat!("expected ", 111_111_usize => Fmt::width(4), " to be greater than ", THRESHOLD);
+        const_args!("expected ", 111_111_usize => Fmt::width(4), " to be greater than ", THRESHOLD);
     }
 }

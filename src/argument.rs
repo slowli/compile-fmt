@@ -1,7 +1,6 @@
 //! [`Argument`] and related types.
 
-use crate::format::Fmt;
-use crate::Formatter;
+use crate::{format::Fmt, ConstArgs};
 
 #[derive(Debug, Clone, Copy)]
 enum ArgumentInner {
@@ -20,7 +19,7 @@ impl ArgumentInner {
     }
 }
 
-/// Argument in a [`const_concat!`](crate::const_concat) macro.
+/// Argument in a [`const_concat!`](crate::const_args) macro.
 #[derive(Debug, Clone, Copy)]
 pub struct Argument {
     inner: ArgumentInner,
@@ -29,7 +28,7 @@ pub struct Argument {
 
 impl Argument {
     /// Returns the formatted length of the argument in bytes.
-    #[doc(hidden)] // only used by
+    #[doc(hidden)] // only used by crate macros
     pub const fn formatted_len(&self) -> usize {
         if let Some(fmt) = &self.fmt {
             fmt.formatted_len()
@@ -53,7 +52,7 @@ impl Argument {
 
     /// Specifies the format for this argument.
     #[must_use]
-    #[doc(hidden)]
+    #[doc(hidden)] // only used by crate macros
     pub const fn with_fmt(mut self, fmt: Fmt) -> Self {
         self.fmt = Some(fmt);
         self
@@ -73,7 +72,7 @@ const fn log_10_ceil(mut value: u128) -> usize {
     log
 }
 
-impl<const CAP: usize> Formatter<CAP> {
+impl<const CAP: usize> ConstArgs<CAP> {
     const fn write_u128(self, mut value: u128) -> Self {
         let new_len = self.len + log_10_ceil(value);
         let mut buffer = self.buffer;

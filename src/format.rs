@@ -1,6 +1,8 @@
 //! `Fmt` and related types.
 
 /// Formatting specification for an [`Argument`](crate::Argument).
+///
+/// FIXME: more details
 #[derive(Debug, Clone, Copy)]
 pub struct Fmt {
     width: usize,

@@ -1,6 +1,66 @@
-//! Compile-time formatting.
+//! Compile-time formatting macros.
 //!
-//! FIXME: use cases, impl details, examples
+//! # What?
+//!
+//! This crate allows formatting values in compile time (e.g., in `const fn`s). The formatted values
+//! are not required to be constants; e.g., arguments or local vars in `const fn` can be formatted.
+//! The formatting logic is space-efficient; i.e., it allocates the least amount of bytes
+//! that can provably to be sufficient for all possible provided inputs. As a consequence, non-constant
+//! formatted args require a [format specifier](Fmt).
+//!
+//! # Why?
+//!
+//! A guiding use case for the crate is richer dynamic compile-time panic messages. It can be used
+//! in other contexts as well (including in runtime).
+//!
+//! # Alternatives and similar tools
+//!
+//! - [`const_panic`] provides functionality covering the guiding use case (compile-time panics).
+//!   It supports more types and formats at the cost of being more complex. It also uses a different
+//!   approach to compute produced message sizes.
+//! - [`const_format`] provides general-purpose formatting of constant values. It doesn't seem to support
+//!   "dynamic" arg.
+//!
+//! [`const_panic`]: https://crates.io/crates/const_panic
+//! [`const_format`]: https://crates.io/crates/const_format/
+//!
+//! # Examples
+//!
+//! ## Basic usage
+//!
+//! ```
+//! use const_fmt::{const_assert, fmt};
+//!
+//! const THRESHOLD: usize = 42;
+//!
+//! const fn check_value(value: usize) {
+//!     const_assert!(
+//!         value <= THRESHOLD,
+//!         "Expected ", value => fmt::<usize>(), " to not exceed ", THRESHOLD
+//!     );
+//!     // main logic
+//! }
+//! ```
+//!
+//! Note the formatting spec produced with [`fmt()`].
+//!
+//! ## Usage with dynamic strings
+//!
+//! ```
+//! use const_fmt::{const_assert, clip};
+//!
+//! const fn check_str(s: &str) {
+//!     const MAX_LEN: usize = 42;
+//!     const_assert!(
+//!         s.len() <= MAX_LEN,
+//!         "String '", s => clip(16, "…"), "' is too long; \
+//!          expected no more than", MAX_LEN, " bytes"
+//!     );
+//!     // main logic
+//! }
+//!```
+//!
+//! See docs for macros and format specifiers for more examples.
 
 #![no_std]
 // Linter settings.

@@ -133,7 +133,7 @@ impl FormatArgument for char {
 
 #[cfg(test)]
 mod tests {
-    use alloc::string::ToString;
+    use std::string::ToString;
 
     use super::*;
 

@@ -14,7 +14,7 @@
 
 use core::{fmt, slice, str};
 #[cfg(test)]
-extern crate alloc;
+extern crate std;
 
 mod argument;
 mod format;
@@ -151,7 +151,7 @@ impl<const CAP: usize> ConstArgs<CAP> {
 
 #[cfg(test)]
 mod tests {
-    use alloc::string::ToString;
+    use std::{panic, string::{String, ToString}};
 
     use super::*;
 
@@ -174,7 +174,7 @@ mod tests {
     fn using_dynamic_chars() {
         for char in ['i', 'ß', 'ℝ', '💣'] {
             let s = const_args!("char: ", char => fmt::<char>(), "!");
-            assert_eq!(s.as_str(), alloc::format!("char: {char}!"));
+            assert_eq!(s.as_str(), std::format!("char: {char}!"));
         }
     }
 
@@ -217,5 +217,21 @@ mod tests {
             value > THRESHOLD,
             "expected ", value => fmt::<usize>(), " to be greater than ", THRESHOLD
         );
+    }
+
+    #[cfg(panic = "unwind")]
+    #[test]
+    fn assertion_produces_exactly_expected_string() {
+        let panic_result = panic::catch_unwind(|| {
+            let value = 1;
+            const_assert!(
+                value > THRESHOLD,
+                "expected ", value => fmt::<usize>(), " to be greater than ", THRESHOLD
+            );
+        });
+        let panic_message = panic_result.unwrap_err();
+        let panic_message = panic_message.downcast_ref::<String>().unwrap();
+        assert_eq!(panic_message, "expected 1 to be greater than 32");
+        // ^ `const_panic` crate fails this test; it pads the panic message with '\0' chars
     }
 }

@@ -192,7 +192,7 @@ impl ArgumentWrapper<char> {
 mod tests {
     use rand::{rngs::StdRng, Rng, SeedableRng};
 
-    use alloc::string::ToString;
+    use std::string::ToString;
 
     use super::*;
 

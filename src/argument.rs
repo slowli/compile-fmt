@@ -7,14 +7,14 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy)]
-enum ArgumentInner {
-    Str(&'static str, Option<StrFormat>),
+enum ArgumentInner<'a> {
+    Str(&'a str, Option<StrFormat>),
     Char(char),
     Int(i128),
     UnsignedInt(u128),
 }
 
-impl ArgumentInner {
+impl ArgumentInner<'_> {
     const fn formatted_len(&self) -> usize {
         match self {
             Self::Str(s, None) => s.len(),
@@ -28,11 +28,11 @@ impl ArgumentInner {
 
 /// Argument in a [`const_concat!`](crate::const_args) macro.
 #[derive(Debug, Clone, Copy)]
-pub struct Argument {
-    inner: ArgumentInner,
+pub struct Argument<'a> {
+    inner: ArgumentInner<'a>,
 }
 
-impl Argument {
+impl Argument<'_> {
     /// Returns the formatted length of the argument in bytes.
     #[doc(hidden)] // only used by crate macros
     pub const fn formatted_len(&self) -> usize {
@@ -111,9 +111,9 @@ impl<T: FormatArgument> ArgumentWrapper<T> {
     }
 }
 
-impl ArgumentWrapper<&'static str> {
+impl<'a> ArgumentWrapper<&'a str> {
     /// Performs the conversion.
-    pub const fn into_argument(self) -> Argument {
+    pub const fn into_argument(self) -> Argument<'a> {
         Argument {
             inner: ArgumentInner::Str(self.0, self.1),
         }
@@ -122,7 +122,7 @@ impl ArgumentWrapper<&'static str> {
 
 impl ArgumentWrapper<i128> {
     /// Performs the conversion.
-    pub const fn into_argument(self) -> Argument {
+    pub const fn into_argument(self) -> Argument<'static> {
         Argument {
             inner: ArgumentInner::Int(self.0),
         }
@@ -133,7 +133,7 @@ macro_rules! impl_argument_wrapper_for_int {
     ($int:ty) => {
         impl ArgumentWrapper<$int> {
             /// Performs the conversion.
-            pub const fn into_argument(self) -> Argument {
+            pub const fn into_argument(self) -> Argument<'static> {
                 Argument {
                     inner: ArgumentInner::Int(self.0 as i128),
                 }
@@ -150,7 +150,7 @@ impl_argument_wrapper_for_int!(isize);
 
 impl ArgumentWrapper<u128> {
     /// Performs the conversion.
-    pub const fn into_argument(self) -> Argument {
+    pub const fn into_argument(self) -> Argument<'static> {
         Argument {
             inner: ArgumentInner::UnsignedInt(self.0),
         }
@@ -161,7 +161,7 @@ macro_rules! impl_argument_wrapper_for_uint {
     ($uint:ty) => {
         impl ArgumentWrapper<$uint> {
             /// Performs the conversion.
-            pub const fn into_argument(self) -> Argument {
+            pub const fn into_argument(self) -> Argument<'static> {
                 Argument {
                     inner: ArgumentInner::UnsignedInt(self.0 as u128),
                 }
@@ -178,7 +178,7 @@ impl_argument_wrapper_for_uint!(usize);
 
 impl ArgumentWrapper<char> {
     /// Performs the conversion.
-    pub const fn into_argument(self) -> Argument {
+    pub const fn into_argument(self) -> Argument<'static> {
         Argument {
             inner: ArgumentInner::Char(self.0),
         }

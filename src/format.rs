@@ -14,8 +14,7 @@
 /// ```
 /// use const_fmt::{const_args, fmt, Fmt, ConstArgs};
 ///
-/// // FIXME: should work with non-static strings
-/// const fn truncate(s: &'static str) -> impl AsRef<str> {
+/// const fn truncate(s: &str) -> impl AsRef<str> {
 ///     const_args!(
 ///         "Truncated string: '", s => Fmt::truncated(8),
 ///         "', original length: ", s.len() => fmt::<usize>()

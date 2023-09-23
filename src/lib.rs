@@ -24,7 +24,7 @@ mod utils;
 use crate::utils::ClippedStr;
 pub use crate::{
     argument::{Argument, ArgumentWrapper},
-    format::{fmt, Fmt, FormatArgument, MaxWidth, StrFormat},
+    format::{clip, fmt, Fmt, FormatArgument, MaxWidth, StrFormat},
 };
 
 /// Formatted string returned by the [`const_args!`] macro, similar to [`Arguments`](fmt::Arguments).
@@ -181,31 +181,31 @@ mod tests {
     #[test]
     fn clipping_strings() {
         let arg = "dynamic";
-        let s = const_args!("string: '", arg => Fmt::clipped(3), '\'');
+        let s = const_args!("string: '", arg => clip(3, ""), '\'');
         assert_eq!(s.as_str(), "string: 'dyn'");
 
         let arg = "Tℝ💣eßt";
-        let s = const_args!("string: '", arg => Fmt::clipped(2), '\'');
+        let s = const_args!("string: '", arg => clip(2, ""), '\'');
         assert_eq!(s.as_str(), "string: 'Tℝ'");
-        let s = const_args!("string: '", arg => Fmt::clipped(3), '\'');
+        let s = const_args!("string: '", arg => clip(3, ""), '\'');
         assert_eq!(s.as_str(), "string: 'Tℝ💣'");
-        let s = const_args!("string: '", arg => Fmt::clipped(4), '\'');
+        let s = const_args!("string: '", arg => clip(4, ""), '\'');
         assert_eq!(s.as_str(), "string: 'Tℝ💣e'");
-        let s = const_args!("string: '", arg => Fmt::clipped(5), '\'');
+        let s = const_args!("string: '", arg => clip(5, ""), '\'');
         assert_eq!(s.as_str(), "string: 'Tℝ💣eß'");
     }
 
     #[test]
     fn clipping_strings_with_clip_chars() {
         let arg = "dynamic";
-        let s = const_args!("string: '", arg => Fmt::clipped(3).clip_with("-"), '\'');
+        let s = const_args!("string: '", arg => clip(3, "-"), '\'');
         assert_eq!(s.as_str(), "string: 'dyn-'");
-        let s = const_args!("string: '", arg => Fmt::clipped(3).clip_with("[..]"), '\'');
+        let s = const_args!("string: '", arg => clip(3, "[..]"), '\'');
         assert_eq!(s.as_str(), "string: 'dyn[..]'");
-        let s = const_args!("string: '", arg => Fmt::clipped(3).clip_with("…"), '\'');
+        let s = const_args!("string: '", arg => clip(3, "…"), '\'');
         assert_eq!(s.as_str(), "string: 'dyn…'");
 
-        let s = const_args!("string: '", arg => Fmt::clipped(10).clip_with("-"), '\'');
+        let s = const_args!("string: '", arg => clip(10, "-"), '\'');
         assert_eq!(s.as_str(), "string: 'dynamic'");
     }
 

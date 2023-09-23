@@ -12,19 +12,19 @@
 /// ## Clipping string to certain width
 ///
 /// ```
-/// use const_fmt::{const_args, fmt, Fmt, ConstArgs};
+/// use const_fmt::{const_args, clip, fmt, ConstArgs};
 ///
-/// const fn clip(s: &str) -> impl AsRef<str> {
+/// const fn format_clipped_str(s: &str) -> impl AsRef<str> {
 ///     const_args!(
-///         "Clipped string: '", s => Fmt::clipped(8),
+///         "Clipped string: '", s => clip(8, "…"),
 ///         "', original length: ", s.len() => fmt::<usize>()
 ///     )
 /// }
 ///
-/// let s = clip("very long string indeed");
+/// let s = format_clipped_str("very long string indeed");
 /// assert_eq!(
 ///     s.as_ref(),
-///     "Clipped string: 'very lon', original length: 23"
+///     "Clipped string: 'very lon…', original length: 23"
 /// );
 /// ```
 #[derive(Debug, Clone, Copy)]
@@ -44,30 +44,17 @@ where
     }
 }
 
-impl Fmt<&str> {
-    /// Creates a format that will clip the value to the specified max **char** width (not byte width!).
-    ///
-    /// # Panics
-    ///
-    /// Panics if `width` is zero.
-    pub const fn clipped(clip_at: usize) -> Self {
-        assert!(clip_at > 0, "Clip width must be positive");
-        Self {
-            byte_width: clip_at * char::MAX_WIDTH,
-            details: StrFormat {
-                clip_at,
-                clip_with: "",
-            },
-        }
-    }
-
-    /// Specifies char(s) to display at the end of the string if it is clipped. By default,
-    /// no replacement is displayed.
-    #[must_use]
-    pub const fn clip_with(mut self, s: &'static str) -> Self {
-        self.byte_width = self.details.clip_at * char::MAX_WIDTH + s.len();
-        self.details.clip_with = s;
-        self
+/// Creates a format that will clip the value to the specified max **char** width (not byte width!).
+/// If clipped, the end of the string will be replaced with the specified replacer, which can be empty.
+///
+/// # Panics
+///
+/// Panics if `clip_at` is zero.
+pub const fn clip<'a>(clip_at: usize, clip_with: &'static str) -> Fmt<&'a str> {
+    assert!(clip_at > 0, "Clip width must be positive");
+    Fmt {
+        byte_width: clip_at * char::MAX_WIDTH + clip_with.len(),
+        details: StrFormat { clip_at, clip_with },
     }
 }
 

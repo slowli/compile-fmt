@@ -61,7 +61,8 @@ macro_rules! const_args {
         let __arguments: &[$crate::Argument] = &[
             $($crate::ArgumentWrapper::new($arg)$(.with_fmt(&$fmt))?.into_argument(),)+
         ];
-        $crate::ConstArgs::<__CAPACITY>::format(__arguments)
+        $crate::ConstArgs::<__CAPACITY>::format(__arguments) as $crate::ConstArgs<__CAPACITY>
+        // ^ The type hint sometimes helps in const contexts
     }};
 }
 

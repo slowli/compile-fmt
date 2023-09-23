@@ -20,6 +20,7 @@ impl ArgumentInner {
     }
 }
 
+/// Argument in a [`const_concat!`](crate::const_concat) macro.
 #[derive(Debug, Clone, Copy)]
 pub struct Argument {
     inner: ArgumentInner,
@@ -50,7 +51,9 @@ impl Argument {
         }
     }
 
+    /// Specifies the format for this argument.
     #[must_use]
+    #[doc(hidden)]
     pub const fn with_fmt(mut self, fmt: Fmt) -> Self {
         self.fmt = Some(fmt);
         self
@@ -181,6 +184,8 @@ impl_argument_wrapper_for_uint!(usize);
 #[cfg(test)]
 mod tests {
     use rand::{rngs::StdRng, Rng, SeedableRng};
+
+    use alloc::string::ToString;
 
     use super::*;
 

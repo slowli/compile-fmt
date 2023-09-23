@@ -1,5 +1,6 @@
 //! `Fmt` and related types.
 
+/// Formatting specification for an [`Argument`](crate::Argument).
 #[derive(Debug, Clone, Copy)]
 pub struct Fmt {
     width: usize,
@@ -25,7 +26,9 @@ impl Fmt {
     }
 }
 
+/// Type that has a known upper boundary for the formatted length.
 pub trait MaxWidth {
+    /// Upper boundary for the formatted length in bytes.
     const MAX_WIDTH: usize;
 }
 
@@ -57,6 +60,8 @@ impl_max_width_for_int!(i8, i16, i32, i64, i128, isize);
 
 #[cfg(test)]
 mod tests {
+    use alloc::string::ToString;
+
     use super::*;
 
     #[test]

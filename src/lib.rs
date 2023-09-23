@@ -1,4 +1,18 @@
+//! Compile-time formatting.
+
+#![no_std]
+// Linter settings.
+#![warn(missing_debug_implementations, missing_docs, bare_trait_objects)]
+#![warn(clippy::all, clippy::pedantic)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::must_use_candidate,
+    clippy::module_name_repetitions
+)]
+
 use core::{fmt, slice, str};
+#[cfg(test)]
+extern crate alloc;
 
 mod argument;
 mod format;
@@ -6,7 +20,7 @@ mod macros;
 
 pub use crate::{
     argument::{Argument, ArgumentWrapper},
-    format::Fmt,
+    format::{Fmt, MaxWidth},
 };
 
 /// Formatter returned by the [`const_concat!`] macro.
@@ -76,6 +90,8 @@ impl<const CAP: usize> Formatter<CAP> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::string::ToString;
+
     use super::*;
 
     const THRESHOLD: usize = 32;
@@ -100,6 +116,6 @@ mod tests {
     #[test]
     #[should_panic(expected = "Argument #1 has insufficient byte width (4); required at least 6")]
     fn insufficient_capacity() {
-        const_concat!("expected ", 111111_usize => Fmt::width(4), " to be greater than ", THRESHOLD);
+        const_concat!("expected ", 111_111_usize => Fmt::width(4), " to be greater than ", THRESHOLD);
     }
 }

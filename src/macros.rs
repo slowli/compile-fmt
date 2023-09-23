@@ -81,9 +81,31 @@ macro_rules! __const_args_impl {
     };
 }
 
-/// Compile-time version of the [`assert!`] macro.
+/// Version of the [`panic!`] macro with the ability to format args in compile time.
 ///
-/// The first argument of the macro must be a boolean value. The remaining arguments must be specified
+/// Arguments have the same syntax as in the [`const_args!`] macro.
+///
+/// # Examples
+///
+/// ```
+/// use const_fmt::{const_panic, clip};
+///
+/// const fn unwrap_result(res: Result<(), &str>) {
+///     if let Err(err) = res {
+///         const_panic!("Encountered an error: ", err => clip(64, "…"));
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! const_panic {
+    ($($arg:tt)+) => {
+        ::core::panic!("{}", $crate::const_args!($($arg)+).as_str());
+    };
+}
+
+/// Version of the [`assert!`] macro with the ability to format args in compile time.
+///
+/// The first argument of the macro must be a boolean value. The remaining arguments have the same syntax
 /// as in the [`const_args!`] macro.
 ///
 /// # Examples

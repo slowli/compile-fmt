@@ -294,4 +294,16 @@ mod tests {
         assert_eq!(panic_message, "expected 1 to be greater than 32");
         // ^ `const_panic` crate fails this test; it pads the panic message with '\0' chars
     }
+
+    const fn unwrap_result(res: Result<(), &str>) {
+        if let Err(err) = res {
+            const_panic!("Encountered an error: ", err => clip(64, "…"));
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "Encountered an error: operation not supported")]
+    fn using_panic() {
+        unwrap_result(Err("operation not supported"));
+    }
 }

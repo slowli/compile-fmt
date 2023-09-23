@@ -1,8 +1,8 @@
 //! [`Argument`] and related types.
 
 use crate::{
-    first_chars,
     format::{Fmt, FormatArgument, StrFormat},
+    utils::ClippedStr,
     ConstArgs,
 };
 
@@ -18,7 +18,10 @@ impl ArgumentInner<'_> {
     const fn formatted_len(&self) -> usize {
         match self {
             Self::Str(s, None) => s.len(),
-            Self::Str(s, Some(fmt)) => first_chars(s, fmt.truncate_at).len(),
+            Self::Str(s, Some(fmt)) => match ClippedStr::new(s, fmt.clip_at) {
+                ClippedStr::Full(bytes) => bytes.len(),
+                ClippedStr::Clipped(bytes) => bytes.len() + fmt.clip_with.len(),
+            },
             Self::Char(c) => c.len_utf8(),
             Self::Int(value) => (*value < 0) as usize + log_10_ceil(value.unsigned_abs()),
             Self::UnsignedInt(value) => log_10_ceil(*value),
@@ -85,7 +88,7 @@ impl<const CAP: usize> ConstArgs<CAP> {
     pub(crate) const fn format_arg(self, arg: Argument) -> Self {
         match arg.inner {
             ArgumentInner::Str(s, fmt) => self.write_str(s, fmt),
-            // chars and ints are not affected by format so far (i.e., not truncated)
+            // chars and ints are not affected by format so far (i.e., not clipped)
             ArgumentInner::Char(c) => self.write_char(c),
             ArgumentInner::Int(value) => self.write_i128(value),
             ArgumentInner::UnsignedInt(value) => self.write_u128(value),
@@ -295,6 +298,70 @@ mod tests {
                 i.to_string().len(),
                 "Formatted length estimated incorrectly for {i}"
             );
+        }
+    }
+
+    #[test]
+    fn formatted_len_for_clipped_strings() {
+        let arg = ArgumentInner::Str(
+            "teßt",
+            Some(StrFormat {
+                clip_at: 2,
+                clip_with: "",
+            }),
+        );
+        assert_eq!(arg.formatted_len(), "te".len());
+
+        let arg = ArgumentInner::Str(
+            "teßt",
+            Some(StrFormat {
+                clip_at: 2,
+                clip_with: "...",
+            }),
+        );
+        assert_eq!(arg.formatted_len(), "te...".len());
+
+        let arg = ArgumentInner::Str(
+            "teßt",
+            Some(StrFormat {
+                clip_at: 2,
+                clip_with: "…",
+            }),
+        );
+        assert_eq!(arg.formatted_len(), "te…".len());
+
+        let arg = ArgumentInner::Str(
+            "teßt",
+            Some(StrFormat {
+                clip_at: 3,
+                clip_with: "",
+            }),
+        );
+        assert_eq!(arg.formatted_len(), "teß".len());
+
+        let arg = ArgumentInner::Str(
+            "teßt",
+            Some(StrFormat {
+                clip_at: 3,
+                clip_with: "…",
+            }),
+        );
+        assert_eq!(arg.formatted_len(), "teß…".len());
+
+        let arg = ArgumentInner::Str(
+            "teßt",
+            Some(StrFormat {
+                clip_at: 3,
+                clip_with: "-",
+            }),
+        );
+        assert_eq!(arg.formatted_len(), "teß-".len());
+
+        for clip_at in [4, 5, 16] {
+            for clip_with in ["", "...", "…"] {
+                let arg = ArgumentInner::Str("teßt", Some(StrFormat { clip_at, clip_with }));
+                assert_eq!(arg.formatted_len(), "teßt".len());
+            }
         }
     }
 }

@@ -9,22 +9,22 @@
 ///
 /// # Examples
 ///
-/// ## Truncating a string to a certain width
+/// ## Clipping string to certain width
 ///
 /// ```
 /// use const_fmt::{const_args, fmt, Fmt, ConstArgs};
 ///
-/// const fn truncate(s: &str) -> impl AsRef<str> {
+/// const fn clip(s: &str) -> impl AsRef<str> {
 ///     const_args!(
-///         "Truncated string: '", s => Fmt::truncated(8),
+///         "Clipped string: '", s => Fmt::clipped(8),
 ///         "', original length: ", s.len() => fmt::<usize>()
 ///     )
 /// }
 ///
-/// let s = truncate("very long string indeed");
+/// let s = clip("very long string indeed");
 /// assert_eq!(
 ///     s.as_ref(),
-///     "Truncated string: 'very lon', original length: 23"
+///     "Clipped string: 'very lon', original length: 23"
 /// );
 /// ```
 #[derive(Debug, Clone, Copy)]
@@ -45,17 +45,29 @@ where
 }
 
 impl Fmt<&str> {
-    /// Creates a format that will truncate the value to the specified max **char** width.
+    /// Creates a format that will clip the value to the specified max **char** width (not byte width!).
     ///
     /// # Panics
     ///
     /// Panics if `width` is zero.
-    pub const fn truncated(truncate_at: usize) -> Self {
-        assert!(truncate_at > 0, "Truncation width must be positive");
+    pub const fn clipped(clip_at: usize) -> Self {
+        assert!(clip_at > 0, "Clip width must be positive");
         Self {
-            byte_width: truncate_at * char::MAX_WIDTH,
-            details: StrFormat { truncate_at },
+            byte_width: clip_at * char::MAX_WIDTH,
+            details: StrFormat {
+                clip_at,
+                clip_with: "",
+            },
         }
+    }
+
+    /// Specifies char(s) to display at the end of the string if it is clipped. By default,
+    /// no replacement is displayed.
+    #[must_use]
+    pub const fn clip_with(mut self, s: &'static str) -> Self {
+        self.byte_width = self.details.clip_at * char::MAX_WIDTH + s.len();
+        self.details.clip_with = s;
+        self
     }
 }
 
@@ -80,7 +92,8 @@ impl FormatArgument for &str {
 /// Formatting details for strings.
 #[derive(Debug, Clone, Copy)]
 pub struct StrFormat {
-    pub(crate) truncate_at: usize,
+    pub(crate) clip_at: usize,
+    pub(crate) clip_with: &'static str,
 }
 
 /// Type that has a known upper boundary for the formatted length.

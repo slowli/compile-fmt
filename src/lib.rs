@@ -19,7 +19,9 @@ extern crate alloc;
 mod argument;
 mod format;
 mod macros;
+mod utils;
 
+use crate::utils::ClippedStr;
 pub use crate::{
     argument::{Argument, ArgumentWrapper},
     format::{fmt, Fmt, FormatArgument, MaxWidth, StrFormat},
@@ -56,11 +58,18 @@ impl<const CAP: usize> ConstArgs<CAP> {
     }
 
     const fn write_str(self, s: &str, fmt: Option<StrFormat>) -> Self {
-        let truncated_str_bytes = match fmt {
-            Some(StrFormat { truncate_at }) => first_chars(s, truncate_at),
-            _ => s.as_bytes(),
-        };
-        self.write_str_bytes(truncated_str_bytes)
+        match fmt {
+            Some(StrFormat { clip_at, clip_with }) => {
+                let clipped = ClippedStr::new(s, clip_at);
+                match clipped {
+                    ClippedStr::Full(bytes) => self.write_str_bytes(bytes),
+                    ClippedStr::Clipped(bytes) => self
+                        .write_str_bytes(bytes)
+                        .write_str_bytes(clip_with.as_bytes()),
+                }
+            }
+            _ => self.write_str_bytes(s.as_bytes()),
+        }
     }
 
     const fn write_str_bytes(self, s_bytes: &[u8]) -> Self {
@@ -140,30 +149,6 @@ impl<const CAP: usize> ConstArgs<CAP> {
     }
 }
 
-/// Returns bytes corresponding to first `char_count` chars in `s`. If `s` contains less chars,
-/// it's returned in full.
-const fn first_chars(s: &str, mut char_count: usize) -> &[u8] {
-    let s_bytes = s.as_bytes();
-    let mut pos = 0;
-    while pos < s_bytes.len() && char_count > 0 {
-        if s_bytes[pos] < 128 {
-            pos += 1;
-        } else if s_bytes[pos] >> 5 == 0b_110 {
-            pos += 2;
-        } else if s_bytes[pos] >> 4 == 0b_1110 {
-            pos += 3;
-        } else if s_bytes[pos] >> 3 == 0b_11110 {
-            pos += 4;
-        } else {
-            unreachable!(); // Invalid UTF-8 encoding
-        }
-        char_count -= 1;
-    }
-    assert!(pos <= s_bytes.len(), "Invalid UTF-8 encoding");
-    // SAFETY: Slicing a byte slice with length being in bounds is safe.
-    unsafe { slice::from_raw_parts(s_bytes.as_ptr(), pos) }
-}
-
 #[cfg(test)]
 mod tests {
     use alloc::string::ToString;
@@ -194,44 +179,34 @@ mod tests {
     }
 
     #[test]
-    fn truncating_strings() {
+    fn clipping_strings() {
         let arg = "dynamic";
-        let s = const_args!("string: '", arg => Fmt::truncated(3), '\'');
+        let s = const_args!("string: '", arg => Fmt::clipped(3), '\'');
         assert_eq!(s.as_str(), "string: 'dyn'");
 
         let arg = "Tℝ💣eßt";
-        let s = const_args!("string: '", arg => Fmt::truncated(2), '\'');
+        let s = const_args!("string: '", arg => Fmt::clipped(2), '\'');
         assert_eq!(s.as_str(), "string: 'Tℝ'");
-        let s = const_args!("string: '", arg => Fmt::truncated(3), '\'');
+        let s = const_args!("string: '", arg => Fmt::clipped(3), '\'');
         assert_eq!(s.as_str(), "string: 'Tℝ💣'");
-        let s = const_args!("string: '", arg => Fmt::truncated(4), '\'');
+        let s = const_args!("string: '", arg => Fmt::clipped(4), '\'');
         assert_eq!(s.as_str(), "string: 'Tℝ💣e'");
-        let s = const_args!("string: '", arg => Fmt::truncated(5), '\'');
+        let s = const_args!("string: '", arg => Fmt::clipped(5), '\'');
         assert_eq!(s.as_str(), "string: 'Tℝ💣eß'");
     }
 
     #[test]
-    fn extracting_first_chars_from_ascii_string() {
-        assert_eq!(first_chars("Test", 1), b"T");
-        assert_eq!(first_chars("Test", 2), b"Te");
-        assert_eq!(first_chars("Test", 3), b"Tes");
-        for char_count in [4, 5, 8, 32, 128] {
-            assert_eq!(first_chars("Test", char_count), b"Test");
-        }
-    }
+    fn clipping_strings_with_clip_chars() {
+        let arg = "dynamic";
+        let s = const_args!("string: '", arg => Fmt::clipped(3).clip_with("-"), '\'');
+        assert_eq!(s.as_str(), "string: 'dyn-'");
+        let s = const_args!("string: '", arg => Fmt::clipped(3).clip_with("[..]"), '\'');
+        assert_eq!(s.as_str(), "string: 'dyn[..]'");
+        let s = const_args!("string: '", arg => Fmt::clipped(3).clip_with("…"), '\'');
+        assert_eq!(s.as_str(), "string: 'dyn…'");
 
-    #[test]
-    fn extracting_first_chars_from_utf8_string() {
-        assert_eq!(first_chars("💣Test", 1), "💣".as_bytes());
-        assert_eq!(first_chars("💣Test", 2), "💣T".as_bytes());
-        assert_eq!(first_chars("T💣est", 3), "T💣e".as_bytes());
-        assert_eq!(first_chars("T💣eßtℝ", 4), "T💣eß".as_bytes());
-        assert_eq!(first_chars("Tℝ💣eßt", 4), "Tℝ💣e".as_bytes());
-        assert_eq!(first_chars("Tℝ💣eßt", 5), "Tℝ💣eß".as_bytes());
-
-        for char_count in [6, 8, 32, 128] {
-            assert_eq!(first_chars("Tℝ💣eßt", char_count), "Tℝ💣eßt".as_bytes());
-        }
+        let s = const_args!("string: '", arg => Fmt::clipped(10).clip_with("-"), '\'');
+        assert_eq!(s.as_str(), "string: 'dynamic'");
     }
 
     #[test]

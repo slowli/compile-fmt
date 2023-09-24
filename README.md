@@ -65,5 +65,14 @@ See crate docs for more examples of usage.
 - [`const_format`] provides general-purpose formatting of constant values. It doesn't seem to support
   "dynamic" / non-constant args.
 
+## License
+
+`const-fmt` is licensed under either of [Apache License, Version 2.0](LICENSE-APACHE)
+or [MIT license](LICENSE-MIT) at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in `const-fmt` by you, as defined in the Apache-2.0 license,
+shall be dual licensed as above, without any additional terms or conditions.
+
 [`const_panic`]: https://crates.io/crates/const_panic
 [`const_format`]: https://crates.io/crates/const_format

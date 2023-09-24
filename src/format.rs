@@ -1,8 +1,9 @@
 //! `Fmt` and related types.
 
+use crate::argument::Ascii;
 use core::fmt::Alignment;
 
-use crate::utils::count_chars;
+use crate::utils::{assert_is_ascii, count_chars};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct FormattedLen {
@@ -166,6 +167,21 @@ pub const fn clip<'a>(clip_at: usize, clip_with: &'static str) -> Fmt<&'a str> {
     }
 }
 
+/// Same as [`clip()`], but for [`Ascii`] strings.
+///
+/// # Panics
+///
+/// Panics if `clip_at` is zero or `clip_with` contains non-ASCII chars.
+pub const fn clip_ascii<'a>(clip_at: usize, clip_with: &'static str) -> Fmt<Ascii<'a>> {
+    assert!(clip_at > 0, "Clip width must be positive");
+    assert_is_ascii(clip_with);
+    Fmt {
+        capacity: FormattedLen::ascii(clip_at + clip_with.len()),
+        details: StrFormat { clip_at, clip_with },
+        pad: None,
+    }
+}
+
 impl<T: FormatArgument> Fmt<T> {
     const fn pad(mut self, align: Alignment, width: usize, using: char) -> Self {
         let pad = Pad {
@@ -237,6 +253,11 @@ pub trait FormatArgument {
 impl FormatArgument for &str {
     type Details = StrFormat;
     const MAX_BYTES_PER_CHAR: usize = 4;
+}
+
+impl FormatArgument for Ascii<'_> {
+    type Details = StrFormat;
+    const MAX_BYTES_PER_CHAR: usize = 1;
 }
 
 /// Formatting details for strings.

@@ -4,7 +4,7 @@ use core::fmt;
 
 use crate::{
     format::{Fmt, FormatArgument, FormattedLen, Pad, StrFormat},
-    utils::{count_chars, ClippedStr},
+    utils::{assert_is_ascii, count_chars, ClippedStr},
     ConstArgs,
 };
 
@@ -141,6 +141,45 @@ impl<const CAP: usize> ConstArgs<CAP> {
     }
 }
 
+/// ASCII string wrapper.
+///
+/// This wrapper is useful for non-constant strings if it can be ensured that a string consists
+/// entirely of ASCII chars. This allows decreasing capacity requirements for [`ConstArgs`]
+/// involving such strings. In the general case, [`ConstArgs`] logic must assume that each char
+/// can require up to 4 bytes; in case of [`Ascii`] strings, this is reduced to 1 byte per char.
+///
+/// # Examples
+///
+/// ```
+/// use compile_fmt::{clip, clip_ascii, compile_args, Ascii, ConstArgs};
+///
+/// let s: ConstArgs<10> = compile_args!(
+///     "[", Ascii::new("test") => clip_ascii(8, "").pad_left(8, ' '), "]"
+/// );
+/// assert_eq!(s.as_str(), "[test    ]");
+///
+/// // The necessary capacity for generic UTF-8 strings is greater
+/// // (34 bytes instead of 10):
+/// let s: ConstArgs<34> = compile_args!(
+///     "[", "test" => clip(8, "").pad_left(8, ' '), "]"
+/// );
+/// assert_eq!(s.as_str(), "[test    ]");
+/// ```
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub struct Ascii<'a>(pub(crate) &'a str);
+
+impl<'a> Ascii<'a> {
+    /// Wraps the provided string if it consists entirely of ASCII chars.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the string contains non-ASCII chars.
+    pub const fn new(s: &'a str) -> Self {
+        assert_is_ascii(s);
+        Self(s)
+    }
+}
+
 /// Wrapper for an admissible argument type allowing to convert it to an [`Argument`] in compile time.
 pub struct ArgumentWrapper<T: FormatArgument> {
     value: T,
@@ -184,6 +223,20 @@ impl<'a> ArgumentWrapper<&'a str> {
         };
         Argument {
             inner: ArgumentInner::Str(self.value, str_fmt),
+            pad,
+        }
+    }
+}
+
+impl<'a> ArgumentWrapper<Ascii<'a>> {
+    /// Performs the conversion.
+    pub const fn into_argument(self) -> Argument<'a> {
+        let (str_fmt, pad) = match self.fmt {
+            Some(Fmt { details, pad, .. }) => (Some(details), pad),
+            None => (None, None),
+        };
+        Argument {
+            inner: ArgumentInner::Str(self.value.0, str_fmt),
             pad,
         }
     }
@@ -532,5 +585,11 @@ mod tests {
             };
             assert_eq!(argument.formatted_len(), "teß…".len());
         }
+    }
+
+    #[test]
+    #[should_panic(expected = "String 'teß…' contains non-ASCII chars; first at position 2")]
+    fn ascii_panic() {
+        Ascii::new("teß…");
     }
 }

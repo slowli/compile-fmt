@@ -93,8 +93,8 @@ mod utils;
 
 use crate::utils::ClippedStr;
 pub use crate::{
-    argument::{Argument, ArgumentWrapper},
-    format::{clip, fmt, Fmt, FormatArgument, MaxWidth, StrFormat},
+    argument::{Argument, ArgumentWrapper, Ascii},
+    format::{clip, clip_ascii, fmt, Fmt, FormatArgument, MaxWidth, StrFormat},
 };
 
 /// Formatted string returned by the [`compile_args!`] macro, similar to [`Arguments`](fmt::Arguments).
@@ -349,6 +349,23 @@ mod tests {
             "string: [", arg => clip(4, "…").pad_left(4, ' '), "]"
         );
         assert_eq!(s.as_str(), "string: [test…]");
+    }
+
+    #[test]
+    fn ascii_strings() {
+        let s: ConstArgs<11> = compile_args!("ASCII: ", Ascii::new("test"));
+        assert_eq!(s.as_str(), "ASCII: test");
+
+        let s: ConstArgs<25> = compile_args!(
+            "ASCII: ", Ascii::new("test") => clip_ascii(16, "..")
+        );
+        // ^ 25 = "ASCII: ".len() + 16 + "..".len()
+        assert_eq!(s.as_str(), "ASCII: test");
+
+        let s: ConstArgs<10> = compile_args!(
+            "ASCII: ", Ascii::new("test") => clip_ascii(2, "~")
+        );
+        assert_eq!(s.as_str(), "ASCII: te~");
     }
 
     #[test]

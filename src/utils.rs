@@ -61,6 +61,23 @@ pub(crate) const fn count_chars(s: &str) -> usize {
     char_count
 }
 
+pub(crate) const fn assert_is_ascii(s: &str) {
+    const CLIP_LEN: usize = 32;
+
+    let s_bytes = s.as_bytes();
+    let mut pos = 0;
+    while pos < s_bytes.len() {
+        if s_bytes[pos] < 128 {
+            pos += 1;
+        } else {
+            crate::compile_panic!(
+                "String '", s => crate::clip(CLIP_LEN, "…"), "' contains non-ASCII chars; \
+                 first at position ", pos => crate::fmt::<usize>()
+            );
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

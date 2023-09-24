@@ -2,7 +2,7 @@
 
 /// Formatting specification for an [`Argument`](crate::Argument).
 ///
-/// A format is necessary to specify for *dynamic* arguments of [`const_args!`](crate::const_args)
+/// A format is necessary to specify for *dynamic* arguments of [`compile_args!`](crate::compile_args)
 /// and related macros (i.e., for arguments that are not constants). For now, the only meaningful
 /// format customization is provided for strings (`&str`). All other arguments have the only
 /// available format that can be created using [`fmt()`].
@@ -12,10 +12,10 @@
 /// ## Clipping string to certain width
 ///
 /// ```
-/// use const_fmt::{const_args, clip, fmt, ConstArgs};
+/// use compile_fmt::{compile_args, clip, fmt, ConstArgs};
 ///
 /// const fn format_clipped_str(s: &str) -> impl AsRef<str> {
-///     const_args!(
+///     compile_args!(
 ///         "Clipped string: '", s => clip(8, "…"),
 ///         "', original length: ", s.len() => fmt::<usize>()
 ///     )

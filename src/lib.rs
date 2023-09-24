@@ -1,4 +1,4 @@
-//! Compile-time formatting macros.
+//! Compile-time formatting and derived functionality (e.g., panics / assertions).
 //!
 //! # What?
 //!
@@ -13,13 +13,18 @@
 //! A guiding use case for the crate is richer dynamic compile-time panic messages. It can be used
 //! in other contexts as well (including in runtime).
 //!
+//! # Limitations
+//!
+//! - Only a few types from the standard library can be formatted: integers, `char`s and `str`ings.
+//! - Formatting specifiers do not support padding / alignment, hex encoding etc.
+//!
 //! # Alternatives and similar tools
 //!
 //! - [`const_panic`] provides functionality covering the guiding use case (compile-time panics).
 //!   It supports more types and formats at the cost of being more complex. It also uses a different
 //!   approach to compute produced message sizes.
 //! - [`const_format`] provides general-purpose formatting of constant values. It doesn't seem to support
-//!   "dynamic" arg.
+//!   "dynamic" / non-constant args.
 //!
 //! [`const_panic`]: https://crates.io/crates/const_panic
 //! [`const_format`]: https://crates.io/crates/const_format/
@@ -29,12 +34,12 @@
 //! ## Basic usage
 //!
 //! ```
-//! use const_fmt::{const_assert, fmt};
+//! use compile_fmt::{compile_assert, fmt};
 //!
 //! const THRESHOLD: usize = 42;
 //!
 //! const fn check_value(value: usize) {
-//!     const_assert!(
+//!     compile_assert!(
 //!         value <= THRESHOLD,
 //!         "Expected ", value => fmt::<usize>(), " to not exceed ", THRESHOLD
 //!     );
@@ -47,13 +52,13 @@
 //! ## Usage with dynamic strings
 //!
 //! ```
-//! use const_fmt::{const_assert, clip};
+//! use compile_fmt::{compile_assert, clip};
 //!
 //! const fn check_str(s: &str) {
-//!     const MAX_LEN: usize = 42;
-//!     const_assert!(
+//!     const MAX_LEN: usize = 16;
+//!     compile_assert!(
 //!         s.len() <= MAX_LEN,
-//!         "String '", s => clip(16, "…"), "' is too long; \
+//!         "String '", s => clip(MAX_LEN, "…"), "' is too long; \
 //!          expected no more than", MAX_LEN, " bytes"
 //!     );
 //!     // main logic
@@ -63,6 +68,8 @@
 //! See docs for macros and format specifiers for more examples.
 
 #![no_std]
+// Documentation settings.
+#![doc(html_root_url = "https://docs.rs/compile-fmt/0.1.0")]
 // Linter settings.
 #![warn(missing_debug_implementations, missing_docs, bare_trait_objects)]
 #![warn(clippy::all, clippy::pedantic)]
@@ -87,7 +94,7 @@ pub use crate::{
     format::{clip, fmt, Fmt, FormatArgument, MaxWidth, StrFormat},
 };
 
-/// Formatted string returned by the [`const_args!`] macro, similar to [`Arguments`](fmt::Arguments).
+/// Formatted string returned by the [`compile_args!`] macro, similar to [`Arguments`](fmt::Arguments).
 ///
 /// The type parameter specifies the compile-time upper boundary of the formatted string length in bytes.
 /// It is not necessarily equal to the actual byte length of the formatted string.
@@ -211,7 +218,10 @@ impl<const CAP: usize> ConstArgs<CAP> {
 
 #[cfg(test)]
 mod tests {
-    use std::{panic, string::{String, ToString}};
+    use std::{
+        panic,
+        string::{String, ToString},
+    };
 
     use super::*;
 
@@ -220,20 +230,20 @@ mod tests {
     #[test]
     fn basics() {
         const TEST: ConstArgs<32> =
-            const_args!("expected ", 1_usize, " to be greater than ", THRESHOLD);
+            compile_args!("expected ", 1_usize, " to be greater than ", THRESHOLD);
         assert_eq!(TEST.to_string(), "expected 1 to be greater than 32");
     }
 
     #[test]
     fn using_chars() {
-        const CHARS: ConstArgs<11> = const_args!('H', 'i', 'ß', 'ℝ', '💣');
+        const CHARS: ConstArgs<11> = compile_args!('H', 'i', 'ß', 'ℝ', '💣');
         assert_eq!(CHARS.to_string(), "Hißℝ💣");
     }
 
     #[test]
     fn using_dynamic_chars() {
         for char in ['i', 'ß', 'ℝ', '💣'] {
-            let s = const_args!("char: ", char => fmt::<char>(), "!");
+            let s = compile_args!("char: ", char => fmt::<char>(), "!");
             assert_eq!(s.as_str(), std::format!("char: {char}!"));
         }
     }
@@ -241,31 +251,31 @@ mod tests {
     #[test]
     fn clipping_strings() {
         let arg = "dynamic";
-        let s = const_args!("string: '", arg => clip(3, ""), '\'');
+        let s = compile_args!("string: '", arg => clip(3, ""), '\'');
         assert_eq!(s.as_str(), "string: 'dyn'");
 
         let arg = "Tℝ💣eßt";
-        let s = const_args!("string: '", arg => clip(2, ""), '\'');
+        let s = compile_args!("string: '", arg => clip(2, ""), '\'');
         assert_eq!(s.as_str(), "string: 'Tℝ'");
-        let s = const_args!("string: '", arg => clip(3, ""), '\'');
+        let s = compile_args!("string: '", arg => clip(3, ""), '\'');
         assert_eq!(s.as_str(), "string: 'Tℝ💣'");
-        let s = const_args!("string: '", arg => clip(4, ""), '\'');
+        let s = compile_args!("string: '", arg => clip(4, ""), '\'');
         assert_eq!(s.as_str(), "string: 'Tℝ💣e'");
-        let s = const_args!("string: '", arg => clip(5, ""), '\'');
+        let s = compile_args!("string: '", arg => clip(5, ""), '\'');
         assert_eq!(s.as_str(), "string: 'Tℝ💣eß'");
     }
 
     #[test]
     fn clipping_strings_with_clip_chars() {
         let arg = "dynamic";
-        let s = const_args!("string: '", arg => clip(3, "-"), '\'');
+        let s = compile_args!("string: '", arg => clip(3, "-"), '\'');
         assert_eq!(s.as_str(), "string: 'dyn-'");
-        let s = const_args!("string: '", arg => clip(3, "[..]"), '\'');
+        let s = compile_args!("string: '", arg => clip(3, "[..]"), '\'');
         assert_eq!(s.as_str(), "string: 'dyn[..]'");
-        let s = const_args!("string: '", arg => clip(3, "…"), '\'');
+        let s = compile_args!("string: '", arg => clip(3, "…"), '\'');
         assert_eq!(s.as_str(), "string: 'dyn…'");
 
-        let s = const_args!("string: '", arg => clip(10, "-"), '\'');
+        let s = compile_args!("string: '", arg => clip(10, "-"), '\'');
         assert_eq!(s.as_str(), "string: 'dynamic'");
     }
 
@@ -273,7 +283,7 @@ mod tests {
     #[should_panic(expected = "expected 1 to be greater than 32")]
     fn assertion() {
         let value = 1;
-        const_assert!(
+        compile_assert!(
             value > THRESHOLD,
             "expected ", value => fmt::<usize>(), " to be greater than ", THRESHOLD
         );
@@ -284,7 +294,7 @@ mod tests {
     fn assertion_produces_exactly_expected_string() {
         let panic_result = panic::catch_unwind(|| {
             let value = 1;
-            const_assert!(
+            compile_assert!(
                 value > THRESHOLD,
                 "expected ", value => fmt::<usize>(), " to be greater than ", THRESHOLD
             );
@@ -297,7 +307,7 @@ mod tests {
 
     const fn unwrap_result(res: Result<(), &str>) {
         if let Err(err) = res {
-            const_panic!("Encountered an error: ", err => clip(64, "…"));
+            compile_panic!("Encountered an error: ", err => clip(64, "…"));
         }
     }
 

@@ -29,7 +29,7 @@ impl ArgumentInner<'_> {
     }
 }
 
-/// Argument in a [`const_concat!`](crate::const_args) macro.
+/// Argument in a [`const_concat!`](crate::compile_args) macro.
 #[derive(Debug, Clone, Copy)]
 pub struct Argument<'a> {
     inner: ArgumentInner<'a>,

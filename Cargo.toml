@@ -1,5 +1,5 @@
 [package]
-name = "const-fmt" # FIXME: come up with a better name
+name = "compile-fmt"
 version = "0.1.0"
 edition = "2021"
 

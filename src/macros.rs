@@ -30,19 +30,19 @@
 /// ## Basic usage
 ///
 /// ```
-/// # use const_fmt::{const_args, ConstArgs};
-/// const ARGS: ConstArgs<9> = const_args!(2_u32, " + ", 2_u32, " = ", 2_u32 + 2);
+/// # use compile_fmt::{compile_args, ConstArgs};
+/// const ARGS: ConstArgs<9> = compile_args!(2_u32, " + ", 2_u32, " = ", 2_u32 + 2);
 /// assert_eq!(ARGS.as_str(), "2 + 2 = 4");
 /// ```
 ///
 /// ## Usage in `const fn` with dynamic args
 ///
 /// ```
-/// use const_fmt::{const_args, fmt};
+/// use compile_fmt::{compile_args, fmt};
 /// use std::fmt;
 ///
 /// const fn create_args(x: usize) -> impl fmt::Display {
-///     let args = const_args!(
+///     let args = compile_args!(
 ///         "2 * x + 3 = ", 2 * x + 3 => fmt::<usize>()
 ///     );
 ///     // ^ `args` are evaluated in compile time, but are not a constant.
@@ -55,9 +55,9 @@
 /// assert_eq!(args.to_string(), "2 * x + 3 = 203");
 /// ```
 #[macro_export]
-macro_rules! const_args {
+macro_rules! compile_args {
     ($($arg:expr $(=> $fmt:expr)?),+) => {{
-        const __CAPACITY: usize = $crate::__const_args_impl!(@total_capacity $($arg $(=> $fmt)?,)+);
+        const __CAPACITY: usize = $crate::__compile_args_impl!(@total_capacity $($arg $(=> $fmt)?,)+);
         let __arguments: &[$crate::Argument] = &[
             $($crate::ArgumentWrapper::new($arg)$(.with_fmt(&$fmt))?.into_argument(),)+
         ];
@@ -66,12 +66,12 @@ macro_rules! const_args {
     }};
 }
 
-#[doc(hidden)] // implementation detail of `const_args`
+#[doc(hidden)] // implementation detail of `compile_args`
 #[macro_export]
-macro_rules! __const_args_impl {
+macro_rules! __compile_args_impl {
     (@total_capacity $first_arg:expr $(=> $first_fmt:expr)?, $($arg:expr $(=> $fmt:expr)?,)*) => {
-        $crate::__const_args_impl!(@arg_capacity $first_arg $(=> $first_fmt)?)
-            $(+ $crate::__const_args_impl!(@arg_capacity $arg $(=> $fmt)?))*
+        $crate::__compile_args_impl!(@arg_capacity $first_arg $(=> $first_fmt)?)
+            $(+ $crate::__compile_args_impl!(@arg_capacity $arg $(=> $fmt)?))*
     };
     (@arg_capacity $arg:expr) => {
         $crate::ArgumentWrapper::new($arg).into_argument().formatted_len()
@@ -83,45 +83,45 @@ macro_rules! __const_args_impl {
 
 /// Version of the [`panic!`] macro with the ability to format args in compile time.
 ///
-/// Arguments have the same syntax as in the [`const_args!`] macro.
+/// Arguments have the same syntax as in the [`compile_args!`] macro.
 ///
 /// # Examples
 ///
 /// ```
-/// use const_fmt::{const_panic, clip};
+/// use compile_fmt::{compile_panic, clip};
 ///
 /// const fn unwrap_result(res: Result<(), &str>) {
 ///     if let Err(err) = res {
-///         const_panic!("Encountered an error: ", err => clip(64, "…"));
+///         compile_panic!("Encountered an error: ", err => clip(64, "…"));
 ///     }
 /// }
 /// ```
 #[macro_export]
-macro_rules! const_panic {
+macro_rules! compile_panic {
     ($($arg:tt)+) => {
-        ::core::panic!("{}", $crate::const_args!($($arg)+).as_str());
+        ::core::panic!("{}", $crate::compile_args!($($arg)+).as_str());
     };
 }
 
 /// Version of the [`assert!`] macro with the ability to format args in compile time.
 ///
 /// The first argument of the macro must be a boolean value. The remaining arguments have the same syntax
-/// as in the [`const_args!`] macro.
+/// as in the [`compile_args!`] macro.
 ///
 /// # Examples
 ///
 /// ```
-/// use const_fmt::{const_assert, fmt};
+/// use compile_fmt::{compile_assert, fmt};
 ///
 /// const fn check_args(x: usize, s: &str) {
 ///     const MAX_STR_LEN: usize = 10;
 ///
-///     const_assert!(
+///     compile_assert!(
 ///         x < 1_000,
 ///         "`x` should be less than 1000 (got: ",
 ///         x => fmt::<usize>(), ")"
 ///     );
-///     const_assert!(
+///     compile_assert!(
 ///         s.len() <= MAX_STR_LEN,
 ///         "String is too long (expected at most ", MAX_STR_LEN,
 ///         " bytes; got ", s.len() => fmt::<usize>(), " bytes)"
@@ -130,10 +130,10 @@ macro_rules! const_panic {
 /// }
 /// ```
 #[macro_export]
-macro_rules! const_assert {
+macro_rules! compile_assert {
     ($check:expr, $($arg:tt)+) => {{
         if !$check {
-            ::core::panic!("{}", $crate::const_args!($($arg)+).as_str());
+            ::core::panic!("{}", $crate::compile_args!($($arg)+).as_str());
         }
     }};
 }

@@ -2,6 +2,15 @@
 name = "compile-fmt"
 version = "0.1.0"
 edition = "2021"
+# FIXME: add rust-version
+authors = ["Alex Ostrovski <ostrovski.alex@gmail.com>"]
+license = "MIT OR Apache-2.0"
+keywords = ["format", "compile-time", "const"]
+categories = ["value-formatting", "development-tools", "no-std"]
+description = "Compile-time formatting and derived functionality (e.g., panics / assertions)."
+repository = "https://github.com/slowli/compile-fmt"
 
 [dev-dependencies]
+doc-comment = "0.3.3"
 rand = "0.8"
+version-sync = "0.9"

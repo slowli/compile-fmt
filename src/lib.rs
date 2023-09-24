@@ -216,6 +216,9 @@ impl<const CAP: usize> ConstArgs<CAP> {
     }
 }
 
+#[cfg(doctest)]
+doc_comment::doctest!("../README.md");
+
 #[cfg(test)]
 mod tests {
     use std::{

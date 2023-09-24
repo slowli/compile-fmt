@@ -5,7 +5,7 @@ use core::fmt;
 use crate::{
     format::{Fmt, FormatArgument, FormattedLen, Pad, StrFormat},
     utils::{assert_is_ascii, count_chars, ClippedStr},
-    ConstArgs,
+    CompileArgs,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -76,7 +76,7 @@ const fn log_10_ceil(mut value: u128) -> usize {
     log
 }
 
-impl<const CAP: usize> ConstArgs<CAP> {
+impl<const CAP: usize> CompileArgs<CAP> {
     const fn write_u128(self, mut value: u128) -> Self {
         let new_len = self.len + log_10_ceil(value);
         let mut buffer = self.buffer;
@@ -144,23 +144,23 @@ impl<const CAP: usize> ConstArgs<CAP> {
 /// ASCII string wrapper.
 ///
 /// This wrapper is useful for non-constant strings if it can be ensured that a string consists
-/// entirely of ASCII chars. This allows decreasing capacity requirements for [`ConstArgs`]
-/// involving such strings. In the general case, [`ConstArgs`] logic must assume that each char
+/// entirely of ASCII chars. This allows decreasing capacity requirements for [`CompileArgs`]
+/// involving such strings. In the general case, [`CompileArgs`] logic must assume that each char
 /// can require up to 4 bytes; in case of [`Ascii`] strings, this is reduced to 1 byte per char.
 ///
 /// # Examples
 ///
 /// ```
-/// use compile_fmt::{clip, clip_ascii, compile_args, Ascii, ConstArgs};
+/// use compile_fmt::{clip, clip_ascii, compile_args, Ascii, CompileArgs};
 ///
-/// let s: ConstArgs<10> = compile_args!(
+/// let s: CompileArgs<10> = compile_args!(
 ///     "[", Ascii::new("test") => clip_ascii(8, "").pad_left(8, ' '), "]"
 /// );
 /// assert_eq!(s.as_str(), "[test    ]");
 ///
 /// // The necessary capacity for generic UTF-8 strings is greater
 /// // (34 bytes instead of 10):
-/// let s: ConstArgs<34> = compile_args!(
+/// let s: CompileArgs<34> = compile_args!(
 ///     "[", "test" => clip(8, "").pad_left(8, ' '), "]"
 /// );
 /// assert_eq!(s.as_str(), "[test    ]");

@@ -19,7 +19,7 @@
 /// A format is mandatory if the argument is not a constant; e.g. if it is an argument or a local variable
 /// in a `const fn`.
 ///
-/// The value output by the macro is [`ConstArgs`](crate::ConstArgs).
+/// The value output by the macro is [`CompileArgs`](crate::CompileArgs).
 ///
 /// # See also
 ///
@@ -30,8 +30,8 @@
 /// ## Basic usage
 ///
 /// ```
-/// # use compile_fmt::{compile_args, ConstArgs};
-/// const ARGS: ConstArgs<9> = compile_args!(2_u32, " + ", 2_u32, " = ", 2_u32 + 2);
+/// # use compile_fmt::{compile_args, CompileArgs};
+/// const ARGS: CompileArgs<9> = compile_args!(2_u32, " + ", 2_u32, " = ", 2_u32 + 2);
 /// assert_eq!(ARGS.as_str(), "2 + 2 = 4");
 /// ```
 ///
@@ -61,7 +61,7 @@ macro_rules! compile_args {
         let __arguments: &[$crate::Argument] = &[
             $($crate::ArgumentWrapper::new($arg)$(.with_fmt($fmt))?.into_argument(),)+
         ];
-        $crate::ConstArgs::<__CAPACITY>::format(__arguments) as $crate::ConstArgs<__CAPACITY>
+        $crate::CompileArgs::<__CAPACITY>::format(__arguments) as $crate::CompileArgs<__CAPACITY>
         // ^ The type hint sometimes helps in const contexts
     }};
 }

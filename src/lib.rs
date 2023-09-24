@@ -102,24 +102,24 @@ pub use crate::{
 /// The type parameter specifies the compile-time upper boundary of the formatted string length in bytes.
 /// It is not necessarily equal to the actual byte length of the formatted string.
 #[derive(Debug)]
-pub struct ConstArgs<const CAP: usize> {
+pub struct CompileArgs<const CAP: usize> {
     buffer: [u8; CAP],
     len: usize,
 }
 
-impl<const CAP: usize> fmt::Display for ConstArgs<CAP> {
+impl<const CAP: usize> fmt::Display for CompileArgs<CAP> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(self.as_str())
     }
 }
 
-impl<const CAP: usize> AsRef<str> for ConstArgs<CAP> {
+impl<const CAP: usize> AsRef<str> for CompileArgs<CAP> {
     fn as_ref(&self) -> &str {
         self.as_str()
     }
 }
 
-impl<const CAP: usize> ConstArgs<CAP> {
+impl<const CAP: usize> CompileArgs<CAP> {
     const fn new() -> Self {
         Self {
             buffer: [0_u8; CAP],
@@ -235,14 +235,14 @@ mod tests {
 
     #[test]
     fn basics() {
-        const TEST: ConstArgs<32> =
+        const TEST: CompileArgs<32> =
             compile_args!("expected ", 1_usize, " to be greater than ", THRESHOLD);
         assert_eq!(TEST.to_string(), "expected 1 to be greater than 32");
     }
 
     #[test]
     fn using_chars() {
-        const CHARS: ConstArgs<11> = compile_args!('H', 'i', 'ß', 'ℝ', '💣');
+        const CHARS: CompileArgs<11> = compile_args!('H', 'i', 'ß', 'ℝ', '💣');
         assert_eq!(CHARS.to_string(), "Hißℝ💣");
     }
 
@@ -353,16 +353,16 @@ mod tests {
 
     #[test]
     fn ascii_strings() {
-        let s: ConstArgs<11> = compile_args!("ASCII: ", Ascii::new("test"));
+        let s: CompileArgs<11> = compile_args!("ASCII: ", Ascii::new("test"));
         assert_eq!(s.as_str(), "ASCII: test");
 
-        let s: ConstArgs<25> = compile_args!(
+        let s: CompileArgs<25> = compile_args!(
             "ASCII: ", Ascii::new("test") => clip_ascii(16, "..")
         );
         // ^ 25 = "ASCII: ".len() + 16 + "..".len()
         assert_eq!(s.as_str(), "ASCII: test");
 
-        let s: ConstArgs<10> = compile_args!(
+        let s: CompileArgs<10> = compile_args!(
             "ASCII: ", Ascii::new("test") => clip_ascii(2, "~")
         );
         assert_eq!(s.as_str(), "ASCII: te~");

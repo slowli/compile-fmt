@@ -283,6 +283,72 @@ mod tests {
     }
 
     #[test]
+    fn padding() {
+        let num = 42_u64;
+        let s = compile_args!(
+            "number: [", num => fmt::<u64>().pad_left(4, ' '), "]"
+        );
+        assert_eq!(s.as_str(), "number: [42  ]");
+
+        let s = compile_args!(
+            "number: [", num => fmt::<u64>().pad_center(4, ' '), "]"
+        );
+        assert_eq!(s.as_str(), "number: [ 42 ]");
+
+        let s = compile_args!(
+            "number: [", num => fmt::<u64>().pad_right(4, '0'), "]"
+        );
+        assert_eq!(s.as_str(), "number: [0042]");
+
+        let s = compile_args!(
+            "number: [", num => fmt::<u64>().pad_right(4, 'ℝ'), "]"
+        );
+        assert_eq!(s.as_str(), "number: [ℝℝ42]");
+        let s = compile_args!(
+            "number: [", num => fmt::<u64>().pad_right(4, '💣'), "]"
+        );
+        assert_eq!(s.as_str(), "number: [💣💣42]");
+
+        let s = compile_args!(
+            "number: [", num * 10_000 => fmt::<u64>().pad_right(4, '0'), "]"
+        );
+        assert_eq!(s.as_str(), "number: [420000]");
+    }
+
+    #[test]
+    fn clipping_and_padding() {
+        let arg = "test string";
+        let s = compile_args!(
+            "string: [", arg => clip(4, "").pad_left(8, ' '), "]"
+        );
+        assert_eq!(s.as_str(), "string: [test    ]");
+
+        let s = compile_args!(
+            "string: [", arg => clip(4, "-").pad_right(8, ' '), "]"
+        );
+        assert_eq!(s.as_str(), "string: [   test-]");
+
+        let s = compile_args!(
+            "string: [", arg => clip(4, "…").pad_center(8, ' '), "]"
+        );
+        assert_eq!(s.as_str(), "string: [ test…  ]");
+
+        let s = compile_args!(
+            "string: [", arg => clip(4, "…").pad_left(8, '💣'), "]"
+        );
+        assert_eq!(s.as_str(), "string: [test…💣💣💣]");
+        let s = compile_args!(
+            "string: [", arg => clip(4, "…").pad_center(8, 'ß'), "]"
+        );
+        assert_eq!(s.as_str(), "string: [ßtest…ßß]");
+
+        let s = compile_args!(
+            "string: [", arg => clip(4, "…").pad_left(4, ' '), "]"
+        );
+        assert_eq!(s.as_str(), "string: [test…]");
+    }
+
+    #[test]
     #[should_panic(expected = "expected 1 to be greater than 32")]
     fn assertion() {
         let value = 1;

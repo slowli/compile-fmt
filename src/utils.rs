@@ -39,6 +39,28 @@ impl<'a> ClippedStr<'a> {
     }
 }
 
+/// Counts the number of chars in a string.
+pub(crate) const fn count_chars(s: &str) -> usize {
+    let s_bytes = s.as_bytes();
+    let mut pos = 0;
+    let mut char_count = 0;
+    while pos < s_bytes.len() {
+        if s_bytes[pos] < 128 {
+            pos += 1;
+        } else if s_bytes[pos] >> 5 == 0b_110 {
+            pos += 2;
+        } else if s_bytes[pos] >> 4 == 0b_1110 {
+            pos += 3;
+        } else if s_bytes[pos] >> 3 == 0b_11110 {
+            pos += 4;
+        } else {
+            unreachable!(); // Invalid UTF-8 encoding
+        }
+        char_count += 1;
+    }
+    char_count
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

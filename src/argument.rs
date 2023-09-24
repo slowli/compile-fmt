@@ -1,8 +1,10 @@
 //! [`Argument`] and related types.
 
+use core::fmt;
+
 use crate::{
-    format::{Fmt, FormatArgument, StrFormat},
-    utils::ClippedStr,
+    format::{Fmt, FormatArgument, FormattedLen, Pad, StrFormat},
+    utils::{count_chars, ClippedStr},
     ConstArgs,
 };
 
@@ -15,16 +17,22 @@ enum ArgumentInner<'a> {
 }
 
 impl ArgumentInner<'_> {
-    const fn formatted_len(&self) -> usize {
+    const fn formatted_len(&self) -> FormattedLen {
         match self {
-            Self::Str(s, None) => s.len(),
+            Self::Str(s, None) => FormattedLen::for_str(s),
             Self::Str(s, Some(fmt)) => match ClippedStr::new(s, fmt.clip_at) {
-                ClippedStr::Full(bytes) => bytes.len(),
-                ClippedStr::Clipped(bytes) => bytes.len() + fmt.clip_with.len(),
+                ClippedStr::Full(_) => FormattedLen::for_str(s),
+                ClippedStr::Clipped(bytes) => FormattedLen {
+                    bytes: bytes.len() + fmt.clip_with.len(),
+                    chars: fmt.clip_at + count_chars(fmt.clip_with),
+                },
             },
-            Self::Char(c) => c.len_utf8(),
-            Self::Int(value) => (*value < 0) as usize + log_10_ceil(value.unsigned_abs()),
-            Self::UnsignedInt(value) => log_10_ceil(*value),
+            Self::Char(c) => FormattedLen::for_char(*c),
+            Self::Int(value) => {
+                let bytes = (*value < 0) as usize + log_10_ceil(value.unsigned_abs());
+                FormattedLen::ascii(bytes)
+            }
+            Self::UnsignedInt(value) => FormattedLen::ascii(log_10_ceil(*value)),
         }
     }
 }
@@ -33,13 +41,25 @@ impl ArgumentInner<'_> {
 #[derive(Debug, Clone, Copy)]
 pub struct Argument<'a> {
     inner: ArgumentInner<'a>,
+    pad: Option<Pad>,
 }
 
 impl Argument<'_> {
     /// Returns the formatted length of the argument in bytes.
     #[doc(hidden)] // only used by crate macros
     pub const fn formatted_len(&self) -> usize {
-        self.inner.formatted_len()
+        let non_padded_len = self.inner.formatted_len();
+        if let Some(pad) = &self.pad {
+            if pad.width > non_padded_len.chars {
+                let pad_char_count = pad.width - non_padded_len.chars;
+                pad_char_count * pad.using.len_utf8() + non_padded_len.bytes
+            } else {
+                // The non-padded string is longer than the pad width; it won't be padded
+                non_padded_len.bytes
+            }
+        } else {
+            non_padded_len.bytes
+        }
     }
 }
 
@@ -85,31 +105,72 @@ impl<const CAP: usize> ConstArgs<CAP> {
         this.write_u128(value.unsigned_abs())
     }
 
-    pub(crate) const fn format_arg(self, arg: Argument) -> Self {
-        match arg.inner {
+    pub(crate) const fn format_arg(mut self, arg: Argument) -> Self {
+        let pad_after = 'compute_pad: {
+            if let Some(pad) = &arg.pad {
+                // Check if the argument must be padded.
+                let non_padded_len = arg.inner.formatted_len();
+                if pad.width > non_padded_len.chars {
+                    let (pad_before, pad_after) = pad.compute_padding(non_padded_len.chars);
+                    let mut count = 0;
+                    while count < pad_before {
+                        self = self.write_char(pad.using);
+                        count += 1;
+                    }
+                    break 'compute_pad Some((pad_after, pad.using));
+                }
+            }
+            None
+        };
+
+        self = match arg.inner {
             ArgumentInner::Str(s, fmt) => self.write_str(s, fmt),
             // chars and ints are not affected by format so far (i.e., not clipped)
             ArgumentInner::Char(c) => self.write_char(c),
             ArgumentInner::Int(value) => self.write_i128(value),
             ArgumentInner::UnsignedInt(value) => self.write_u128(value),
+        };
+        if let Some((pad_after, using)) = pad_after {
+            let mut count = 0;
+            while count < pad_after {
+                self = self.write_char(using);
+                count += 1;
+            }
         }
+        self
     }
 }
 
 /// Wrapper for an admissible argument type allowing to convert it to an [`Argument`] in compile time.
-#[derive(Debug)]
-pub struct ArgumentWrapper<T: FormatArgument>(T, Option<T::Details>);
+pub struct ArgumentWrapper<T: FormatArgument> {
+    value: T,
+    fmt: Option<Fmt<T>>,
+}
+
+impl<T> fmt::Debug for ArgumentWrapper<T>
+where
+    T: FormatArgument + fmt::Debug,
+    T::Details: fmt::Debug,
+{
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ArgumentWrapper")
+            .field("value", &self.value)
+            .field("fmt", &self.fmt)
+            .finish()
+    }
+}
 
 impl<T: FormatArgument> ArgumentWrapper<T> {
     #[doc(hidden)] // used by crate macros
     pub const fn new(value: T) -> Self {
-        Self(value, None)
+        Self { value, fmt: None }
     }
 
     #[must_use]
     #[doc(hidden)] // used by crate macros
-    pub const fn with_fmt(mut self, fmt: &Fmt<T>) -> Self {
-        self.1 = Some(fmt.details);
+    pub const fn with_fmt(mut self, fmt: Fmt<T>) -> Self {
+        self.fmt = Some(fmt);
         self
     }
 }
@@ -117,8 +178,13 @@ impl<T: FormatArgument> ArgumentWrapper<T> {
 impl<'a> ArgumentWrapper<&'a str> {
     /// Performs the conversion.
     pub const fn into_argument(self) -> Argument<'a> {
+        let (str_fmt, pad) = match self.fmt {
+            Some(Fmt { details, pad, .. }) => (Some(details), pad),
+            None => (None, None),
+        };
         Argument {
-            inner: ArgumentInner::Str(self.0, self.1),
+            inner: ArgumentInner::Str(self.value, str_fmt),
+            pad,
         }
     }
 }
@@ -126,8 +192,13 @@ impl<'a> ArgumentWrapper<&'a str> {
 impl ArgumentWrapper<i128> {
     /// Performs the conversion.
     pub const fn into_argument(self) -> Argument<'static> {
+        let pad = match self.fmt {
+            Some(Fmt { pad, .. }) => pad,
+            None => None,
+        };
         Argument {
-            inner: ArgumentInner::Int(self.0),
+            inner: ArgumentInner::Int(self.value),
+            pad,
         }
     }
 }
@@ -137,8 +208,13 @@ macro_rules! impl_argument_wrapper_for_int {
         impl ArgumentWrapper<$int> {
             /// Performs the conversion.
             pub const fn into_argument(self) -> Argument<'static> {
+                let pad = match self.fmt {
+                    Some(Fmt { pad, .. }) => pad,
+                    None => None,
+                };
                 Argument {
-                    inner: ArgumentInner::Int(self.0 as i128),
+                    inner: ArgumentInner::Int(self.value as i128),
+                    pad,
                 }
             }
         }
@@ -154,8 +230,13 @@ impl_argument_wrapper_for_int!(isize);
 impl ArgumentWrapper<u128> {
     /// Performs the conversion.
     pub const fn into_argument(self) -> Argument<'static> {
+        let pad = match self.fmt {
+            Some(Fmt { pad, .. }) => pad,
+            None => None,
+        };
         Argument {
-            inner: ArgumentInner::UnsignedInt(self.0),
+            inner: ArgumentInner::UnsignedInt(self.value),
+            pad,
         }
     }
 }
@@ -165,8 +246,13 @@ macro_rules! impl_argument_wrapper_for_uint {
         impl ArgumentWrapper<$uint> {
             /// Performs the conversion.
             pub const fn into_argument(self) -> Argument<'static> {
+                let pad = match self.fmt {
+                    Some(Fmt { pad, .. }) => pad,
+                    None => None,
+                };
                 Argument {
-                    inner: ArgumentInner::UnsignedInt(self.0 as u128),
+                    inner: ArgumentInner::UnsignedInt(self.value as u128),
+                    pad,
                 }
             }
         }
@@ -182,8 +268,13 @@ impl_argument_wrapper_for_uint!(usize);
 impl ArgumentWrapper<char> {
     /// Performs the conversion.
     pub const fn into_argument(self) -> Argument<'static> {
+        let pad = match self.fmt {
+            Some(Fmt { pad, .. }) => pad,
+            None => None,
+        };
         Argument {
-            inner: ArgumentInner::Char(self.0),
+            inner: ArgumentInner::Char(self.value),
+            pad,
         }
     }
 }
@@ -192,6 +283,7 @@ impl ArgumentWrapper<char> {
 mod tests {
     use rand::{rngs::StdRng, Rng, SeedableRng};
 
+    use core::fmt::Alignment;
     use std::string::ToString;
 
     use super::*;
@@ -310,7 +402,7 @@ mod tests {
                 clip_with: "",
             }),
         );
-        assert_eq!(arg.formatted_len(), "te".len());
+        assert_eq!(arg.formatted_len(), FormattedLen::for_str("te"));
 
         let arg = ArgumentInner::Str(
             "teßt",
@@ -319,7 +411,7 @@ mod tests {
                 clip_with: "...",
             }),
         );
-        assert_eq!(arg.formatted_len(), "te...".len());
+        assert_eq!(arg.formatted_len(), FormattedLen::for_str("te..."));
 
         let arg = ArgumentInner::Str(
             "teßt",
@@ -328,7 +420,7 @@ mod tests {
                 clip_with: "…",
             }),
         );
-        assert_eq!(arg.formatted_len(), "te…".len());
+        assert_eq!(arg.formatted_len(), FormattedLen::for_str("te…"));
 
         let arg = ArgumentInner::Str(
             "teßt",
@@ -337,7 +429,7 @@ mod tests {
                 clip_with: "",
             }),
         );
-        assert_eq!(arg.formatted_len(), "teß".len());
+        assert_eq!(arg.formatted_len(), FormattedLen::for_str("teß"));
 
         let arg = ArgumentInner::Str(
             "teßt",
@@ -346,7 +438,7 @@ mod tests {
                 clip_with: "…",
             }),
         );
-        assert_eq!(arg.formatted_len(), "teß…".len());
+        assert_eq!(arg.formatted_len(), FormattedLen::for_str("teß…"));
 
         let arg = ArgumentInner::Str(
             "teßt",
@@ -355,13 +447,90 @@ mod tests {
                 clip_with: "-",
             }),
         );
-        assert_eq!(arg.formatted_len(), "teß-".len());
+        assert_eq!(arg.formatted_len(), FormattedLen::for_str("teß-"));
 
         for clip_at in [4, 5, 16] {
             for clip_with in ["", "...", "…"] {
                 let arg = ArgumentInner::Str("teßt", Some(StrFormat { clip_at, clip_with }));
-                assert_eq!(arg.formatted_len(), "teßt".len());
+                assert_eq!(arg.formatted_len(), FormattedLen::for_str("teßt"));
             }
+        }
+    }
+
+    #[test]
+    fn formatted_len_with_padding() {
+        let argument = Argument {
+            inner: ArgumentInner::Str("teßt", None),
+            pad: Some(Pad {
+                align: Alignment::Left,
+                width: 8,
+                using: ' ',
+            }),
+        };
+        assert_eq!(argument.formatted_len(), "teßt    ".len());
+
+        let argument = Argument {
+            inner: ArgumentInner::Str("teßt", None),
+            pad: Some(Pad {
+                align: Alignment::Left,
+                width: 8,
+                using: '💣',
+            }),
+        };
+        assert_eq!(argument.formatted_len(), "teßt💣💣💣💣".len());
+
+        for pad_width in 1..=4 {
+            let argument = Argument {
+                inner: ArgumentInner::Str("teßt", None),
+                pad: Some(Pad {
+                    align: Alignment::Left,
+                    width: pad_width,
+                    using: ' ',
+                }),
+            };
+            assert_eq!(argument.formatted_len(), "teßt".len());
+        }
+    }
+
+    #[test]
+    fn formatted_len_with_padding_and_clipping() {
+        let inner = ArgumentInner::Str(
+            "teßt",
+            Some(StrFormat {
+                clip_at: 3,
+                clip_with: "…",
+            }),
+        );
+        let argument = Argument {
+            inner,
+            pad: Some(Pad {
+                align: Alignment::Left,
+                width: 8,
+                using: ' ',
+            }),
+        };
+        assert_eq!(argument.formatted_len(), "teß…    ".len());
+
+        let argument = Argument {
+            inner,
+            pad: Some(Pad {
+                align: Alignment::Left,
+                width: 8,
+                using: '💣',
+            }),
+        };
+        assert_eq!(argument.formatted_len(), "teß…💣💣💣💣".len());
+
+        for pad_width in 1..=4 {
+            let argument = Argument {
+                inner,
+                pad: Some(Pad {
+                    align: Alignment::Left,
+                    width: pad_width,
+                    using: ' ',
+                }),
+            };
+            assert_eq!(argument.formatted_len(), "teß…".len());
         }
     }
 }

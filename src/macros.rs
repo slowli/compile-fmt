@@ -59,7 +59,7 @@ macro_rules! compile_args {
     ($($arg:expr $(=> $fmt:expr)?),+) => {{
         const __CAPACITY: usize = $crate::__compile_args_impl!(@total_capacity $($arg $(=> $fmt)?,)+);
         let __arguments: &[$crate::Argument] = &[
-            $($crate::ArgumentWrapper::new($arg)$(.with_fmt(&$fmt))?.into_argument(),)+
+            $($crate::ArgumentWrapper::new($arg)$(.with_fmt($fmt))?.into_argument(),)+
         ];
         $crate::ConstArgs::<__CAPACITY>::format(__arguments) as $crate::ConstArgs<__CAPACITY>
         // ^ The type hint sometimes helps in const contexts
@@ -77,7 +77,7 @@ macro_rules! __compile_args_impl {
         $crate::ArgumentWrapper::new($arg).into_argument().formatted_len()
     };
     (@arg_capacity $arg:expr => $fmt:expr) => {
-        $crate::Fmt::formatted_len(&$fmt)
+        $crate::Fmt::capacity(&$fmt)
     };
 }
 

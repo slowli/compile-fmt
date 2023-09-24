@@ -68,7 +68,7 @@ impl Pad {
 /// ## Clipping string to certain width
 ///
 /// ```
-/// use compile_fmt::{compile_args, clip, fmt, ConstArgs};
+/// use compile_fmt::{compile_args, clip, fmt};
 ///
 /// const fn format_clipped_str(s: &str) -> impl AsRef<str> {
 ///     compile_args!(
@@ -82,6 +82,46 @@ impl Pad {
 ///     s.as_ref(),
 ///     "Clipped string: 'very lon…', original length: 23"
 /// );
+/// ```
+///
+/// ## Padding
+///
+/// ```
+/// # use compile_fmt::{compile_args, fmt};
+/// const fn format_with_padding(value: u32) -> impl AsRef<str> {
+///     compile_args!(
+///         "Number: ", value => fmt::<u32>().pad_right(4, '0')
+///     )
+/// }
+///
+/// let s = format_with_padding(42);
+/// assert_eq!(s.as_ref(), "Number: 0042");
+/// let s = format_with_padding(19_999);
+/// assert_eq!(s.as_ref(), "Number: 19999");
+/// // ^ If the string before padding contains more chars than in the padding spec,
+/// // padding is not applied at all.
+/// ```
+///
+/// Any Unicode char can be used as padding:
+///
+/// ```
+/// # use compile_fmt::{compile_args, fmt};
+/// let s = compile_args!(
+///     "Number: ", 42 => fmt::<u32>().pad_left(4, '💣')
+/// );
+/// assert_eq!(s.as_str(), "Number: 42💣💣");
+/// ```
+///
+/// Strings can be padded as well:
+///
+/// ```
+/// # use compile_fmt::{compile_args, clip};
+/// const fn pad_str(s: &str) -> impl AsRef<str> {
+///     compile_args!("[", s => clip(8, "").pad_center(8, ' '), "]")
+/// }
+///
+/// assert_eq!(pad_str("test").as_ref(), "[  test  ]");
+/// assert_eq!(pad_str("test!").as_ref(), "[ test!  ]");
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct Fmt<T: FormatArgument> {

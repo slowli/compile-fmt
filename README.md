@@ -55,7 +55,10 @@ See crate docs for more examples of usage.
 ## Limitations
 
 - Only a few types from the standard library can be formatted: integers, `char`s and `str`ings.
-- Formatting specifiers do not support padding / alignment, hex encoding etc.
+- Formatting specifiers do not support hex encoding, debug formatting etc.
+- Padding logic assumes that any Unicode char has identical displayed width, which isn't really
+  true (e.g., there are chars that have zero width and instead combine with the previous char).
+  The same assumption is made by the `std` padding logic.
 
 ## Alternatives and similar tools
 

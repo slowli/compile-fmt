@@ -62,7 +62,7 @@
 //!     compile_assert!(
 //!         s.len() <= MAX_LEN,
 //!         "String '", s => clip(MAX_LEN, "…"), "' is too long; \
-//!          expected no more than", MAX_LEN, " bytes"
+//!          expected no more than ", MAX_LEN, " bytes"
 //!     );
 //!     // main logic
 //! }
@@ -91,11 +91,13 @@ mod format;
 mod macros;
 mod utils;
 
-use crate::utils::ClippedStr;
+#[doc(hidden)]
+pub use crate::argument::{Argument, ArgumentWrapper};
 pub use crate::{
-    argument::{Argument, ArgumentWrapper, Ascii},
-    format::{clip, clip_ascii, fmt, Fmt, FormatArgument, MaxWidth, StrFormat},
+    argument::Ascii,
+    format::{clip, clip_ascii, fmt, Fmt, FormatArgument, MaxWidth},
 };
+use crate::{format::StrFormat, utils::ClippedStr};
 
 /// Formatted string returned by the [`compile_args!`] macro, similar to [`Arguments`](fmt::Arguments).
 ///
@@ -129,13 +131,13 @@ impl<const CAP: usize> CompileArgs<CAP> {
 
     const fn write_str(self, s: &str, fmt: Option<StrFormat>) -> Self {
         match fmt {
-            Some(StrFormat { clip_at, clip_with }) => {
+            Some(StrFormat { clip_at, using }) => {
                 let clipped = ClippedStr::new(s, clip_at);
                 match clipped {
                     ClippedStr::Full(bytes) => self.write_str_bytes(bytes),
                     ClippedStr::Clipped(bytes) => self
                         .write_str_bytes(bytes)
-                        .write_str_bytes(clip_with.as_bytes()),
+                        .write_str_bytes(using.as_bytes()),
                 }
             }
             _ => self.write_str_bytes(s.as_bytes()),
@@ -198,6 +200,7 @@ impl<const CAP: usize> CompileArgs<CAP> {
     }
 
     /// Formats the provided sequence of [`Argument`]s.
+    #[doc(hidden)] // implementation detail of crate macros
     pub const fn format(arguments: &[Argument]) -> Self {
         let mut this = Self::new();
         let mut arg_i = 0;

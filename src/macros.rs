@@ -10,6 +10,7 @@
 /// - Signed and unsigned integers (`u8`, `i8`, `u16`, `i16`, `u32`, `i32`, `u64`, `i64`, `u128`,
 ///   `i128`, `usize`, `isize`)
 /// - Strings (`&str`)
+/// - [`Ascii`](crate::Ascii) strings
 /// - Chars (`char`)
 ///
 /// Due to how Rust type inference works, you might need to specify the type suffix for integer
@@ -23,7 +24,10 @@
 ///
 /// # See also
 ///
-/// - [`const_assert!`] provides a compile-time evaluated version of the `assert!` macro.
+/// - [`compile_panic!`](crate::compile_panic) provides a version of the `panic!` macro with support
+///   of dynamic arguments.
+/// - [`compile_assert!`](crate::compile_assert) provides a version of the `assert!` macro with support
+///   of dynamic arguments.
 ///
 /// # Examples
 ///

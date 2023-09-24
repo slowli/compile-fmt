@@ -23,8 +23,8 @@ impl ArgumentInner<'_> {
             Self::Str(s, Some(fmt)) => match ClippedStr::new(s, fmt.clip_at) {
                 ClippedStr::Full(_) => FormattedLen::for_str(s),
                 ClippedStr::Clipped(bytes) => FormattedLen {
-                    bytes: bytes.len() + fmt.clip_with.len(),
-                    chars: fmt.clip_at + count_chars(fmt.clip_with),
+                    bytes: bytes.len() + fmt.using.len(),
+                    chars: fmt.clip_at + count_chars(fmt.using),
                 },
             },
             Self::Char(c) => FormattedLen::for_char(*c),
@@ -37,7 +37,8 @@ impl ArgumentInner<'_> {
     }
 }
 
-/// Argument in a [`const_concat!`](crate::compile_args) macro.
+/// Generalized argument in crate macros.
+#[doc(hidden)] // implementation detail of crate macros
 #[derive(Debug, Clone, Copy)]
 pub struct Argument<'a> {
     inner: ArgumentInner<'a>,
@@ -46,7 +47,6 @@ pub struct Argument<'a> {
 
 impl Argument<'_> {
     /// Returns the formatted length of the argument in bytes.
-    #[doc(hidden)] // only used by crate macros
     pub const fn formatted_len(&self) -> usize {
         let non_padded_len = self.inner.formatted_len();
         if let Some(pad) = &self.pad {
@@ -145,8 +145,9 @@ impl<const CAP: usize> CompileArgs<CAP> {
 ///
 /// This wrapper is useful for non-constant strings if it can be ensured that a string consists
 /// entirely of ASCII chars. This allows decreasing capacity requirements for [`CompileArgs`]
-/// involving such strings. In the general case, [`CompileArgs`] logic must assume that each char
-/// can require up to 4 bytes; in case of [`Ascii`] strings, this is reduced to 1 byte per char.
+/// involving such strings. In the general case, `CompileArgs` logic must assume that each char
+/// in a string can require up to 4 bytes; in case of `Ascii` strings, this is reduced to
+/// 1 byte per char.
 ///
 /// # Examples
 ///
@@ -181,6 +182,7 @@ impl<'a> Ascii<'a> {
 }
 
 /// Wrapper for an admissible argument type allowing to convert it to an [`Argument`] in compile time.
+#[doc(hidden)] // implementation detail of crate macros
 pub struct ArgumentWrapper<T: FormatArgument> {
     value: T,
     fmt: Option<Fmt<T>>,
@@ -201,13 +203,11 @@ where
 }
 
 impl<T: FormatArgument> ArgumentWrapper<T> {
-    #[doc(hidden)] // used by crate macros
     pub const fn new(value: T) -> Self {
         Self { value, fmt: None }
     }
 
     #[must_use]
-    #[doc(hidden)] // used by crate macros
     pub const fn with_fmt(mut self, fmt: Fmt<T>) -> Self {
         self.fmt = Some(fmt);
         self
@@ -452,7 +452,7 @@ mod tests {
             "teßt",
             Some(StrFormat {
                 clip_at: 2,
-                clip_with: "",
+                using: "",
             }),
         );
         assert_eq!(arg.formatted_len(), FormattedLen::for_str("te"));
@@ -461,7 +461,7 @@ mod tests {
             "teßt",
             Some(StrFormat {
                 clip_at: 2,
-                clip_with: "...",
+                using: "...",
             }),
         );
         assert_eq!(arg.formatted_len(), FormattedLen::for_str("te..."));
@@ -470,7 +470,7 @@ mod tests {
             "teßt",
             Some(StrFormat {
                 clip_at: 2,
-                clip_with: "…",
+                using: "…",
             }),
         );
         assert_eq!(arg.formatted_len(), FormattedLen::for_str("te…"));
@@ -479,7 +479,7 @@ mod tests {
             "teßt",
             Some(StrFormat {
                 clip_at: 3,
-                clip_with: "",
+                using: "",
             }),
         );
         assert_eq!(arg.formatted_len(), FormattedLen::for_str("teß"));
@@ -488,7 +488,7 @@ mod tests {
             "teßt",
             Some(StrFormat {
                 clip_at: 3,
-                clip_with: "…",
+                using: "…",
             }),
         );
         assert_eq!(arg.formatted_len(), FormattedLen::for_str("teß…"));
@@ -497,14 +497,14 @@ mod tests {
             "teßt",
             Some(StrFormat {
                 clip_at: 3,
-                clip_with: "-",
+                using: "-",
             }),
         );
         assert_eq!(arg.formatted_len(), FormattedLen::for_str("teß-"));
 
         for clip_at in [4, 5, 16] {
-            for clip_with in ["", "...", "…"] {
-                let arg = ArgumentInner::Str("teßt", Some(StrFormat { clip_at, clip_with }));
+            for using in ["", "...", "…"] {
+                let arg = ArgumentInner::Str("teßt", Some(StrFormat { clip_at, using }));
                 assert_eq!(arg.formatted_len(), FormattedLen::for_str("teßt"));
             }
         }
@@ -551,7 +551,7 @@ mod tests {
             "teßt",
             Some(StrFormat {
                 clip_at: 3,
-                clip_with: "…",
+                using: "…",
             }),
         );
         let argument = Argument {

@@ -155,14 +155,14 @@ where
 /// # Panics
 ///
 /// Panics if `clip_at` is zero.
-pub const fn clip<'a>(clip_at: usize, clip_with: &'static str) -> Fmt<&'a str> {
+pub const fn clip<'a>(clip_at: usize, using: &'static str) -> Fmt<&'a str> {
     assert!(clip_at > 0, "Clip width must be positive");
     Fmt {
         capacity: FormattedLen {
-            bytes: clip_at * char::MAX_WIDTH + clip_with.len(),
-            chars: clip_at + count_chars(clip_with),
+            bytes: clip_at * char::MAX_WIDTH + using.len(),
+            chars: clip_at + count_chars(using),
         },
-        details: StrFormat { clip_at, clip_with },
+        details: StrFormat { clip_at, using },
         pad: None,
     }
 }
@@ -171,13 +171,13 @@ pub const fn clip<'a>(clip_at: usize, clip_with: &'static str) -> Fmt<&'a str> {
 ///
 /// # Panics
 ///
-/// Panics if `clip_at` is zero or `clip_with` contains non-ASCII chars.
-pub const fn clip_ascii<'a>(clip_at: usize, clip_with: &'static str) -> Fmt<Ascii<'a>> {
+/// Panics if `clip_at` is zero or `using` contains non-ASCII chars.
+pub const fn clip_ascii<'a>(clip_at: usize, using: &'static str) -> Fmt<Ascii<'a>> {
     assert!(clip_at > 0, "Clip width must be positive");
-    assert_is_ascii(clip_with);
+    assert_is_ascii(using);
     Fmt {
-        capacity: FormattedLen::ascii(clip_at + clip_with.len()),
-        details: StrFormat { clip_at, clip_with },
+        capacity: FormattedLen::ascii(clip_at + using.len()),
+        details: StrFormat { clip_at, using },
         pad: None,
     }
 }
@@ -193,19 +193,19 @@ impl<T: FormatArgument> Fmt<T> {
         self
     }
 
-    /// Specifies left-aligned padding.
+    /// Specifies left-aligned padding. `width` is measured in chars, rather than bytes.
     #[must_use]
     pub const fn pad_left(self, width: usize, using: char) -> Self {
         self.pad(Alignment::Left, width, using)
     }
 
-    /// Specifies right-aligned padding.
+    /// Specifies right-aligned padding. `width` is measured in chars, rather than bytes.
     #[must_use]
     pub const fn pad_right(self, width: usize, using: char) -> Self {
         self.pad(Alignment::Right, width, using)
     }
 
-    /// Specifies center-aligned padding.
+    /// Specifies center-aligned padding. `width` is measured in chars, rather than bytes.
     #[must_use]
     pub const fn pad_center(self, width: usize, using: char) -> Self {
         self.pad(Alignment::Center, width, using)
@@ -261,10 +261,11 @@ impl FormatArgument for Ascii<'_> {
 }
 
 /// Formatting details for strings.
+#[doc(hidden)] // implementation detail
 #[derive(Debug, Clone, Copy)]
 pub struct StrFormat {
     pub(crate) clip_at: usize,
-    pub(crate) clip_with: &'static str,
+    pub(crate) using: &'static str,
 }
 
 /// Type that has a known upper boundary for the formatted length.

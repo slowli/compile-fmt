@@ -1,5 +1,13 @@
 # Compile-Time Formatting
 
+[![Build Status](https://github.com/slowli/compile-fmt/workflows/CI/badge.svg?branch=main)](https://github.com/slowli/compile-fmt/actions)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%2FApache--2.0-blue)](https://github.com/slowli/compile-fmt#license)
+![rust 1.65+ required](https://img.shields.io/badge/rust-1.65+-blue.svg?label=Required%20Rust)
+![no_std supported](https://img.shields.io/badge/no__std-tested-green.svg)
+
+**Documentation:**
+[![crate docs (main)](https://img.shields.io/badge/main-yellow.svg?label=docs)](https://slowli.github.io/compile-fmt/compile_fmt/)
+
 This crate allows formatting values in compile time (e.g., in `const fn`s). The formatted values
 are not required to be constants; e.g., arguments or local vars in `const fn` can be formatted.
 The formatting logic is space-efficient; i.e., it allocates the least amount of bytes
@@ -70,11 +78,11 @@ See crate docs for more examples of usage.
 
 ## License
 
-`const-fmt` is licensed under either of [Apache License, Version 2.0](LICENSE-APACHE)
+`compile-fmt` is licensed under either of [Apache License, Version 2.0](LICENSE-APACHE)
 or [MIT license](LICENSE-MIT) at your option.
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in `const-fmt` by you, as defined in the Apache-2.0 license,
+for inclusion in `compile-fmt` by you, as defined in the Apache-2.0 license,
 shall be dual licensed as above, without any additional terms or conditions.
 
 [`const_panic`]: https://crates.io/crates/const_panic

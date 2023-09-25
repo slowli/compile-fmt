@@ -7,7 +7,7 @@ authors = ["Alex Ostrovski <ostrovski.alex@gmail.com>"]
 license = "MIT OR Apache-2.0"
 keywords = ["format", "compile-time", "const"]
 categories = ["value-formatting", "development-tools", "no-std"]
-description = "Compile-time formatting and derived functionality (e.g., panics / assertions)."
+description = "Compile-time formatting and derived functionality (e.g., panics / assertions)"
 repository = "https://github.com/slowli/compile-fmt"
 
 [dev-dependencies]

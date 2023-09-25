@@ -78,11 +78,11 @@ See crate docs for more examples of usage.
 
 ## License
 
-`const-fmt` is licensed under either of [Apache License, Version 2.0](LICENSE-APACHE)
+`compile-fmt` is licensed under either of [Apache License, Version 2.0](LICENSE-APACHE)
 or [MIT license](LICENSE-MIT) at your option.
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in `const-fmt` by you, as defined in the Apache-2.0 license,
+for inclusion in `compile-fmt` by you, as defined in the Apache-2.0 license,
 shall be dual licensed as above, without any additional terms or conditions.
 
 [`const_panic`]: https://crates.io/crates/const_panic

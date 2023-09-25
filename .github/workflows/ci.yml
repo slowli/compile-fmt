@@ -29,10 +29,8 @@ jobs:
           key: ${{ runner.os }}-msrv-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-msrv-cargo
 
-      - name: Run tests
-        run: cargo test --workspace --all-targets
-      - name: Run doc tests
-        run: cargo test --workspace --doc
+      - name: Build library
+        run: cargo build -p compile-fmt --lib
 
   build:
     runs-on: ubuntu-latest
@@ -76,6 +74,8 @@ jobs:
       - build
       - build-msrv
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v3

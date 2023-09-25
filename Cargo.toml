@@ -2,7 +2,7 @@
 name = "compile-fmt"
 version = "0.1.0"
 edition = "2021"
-# FIXME: add rust-version
+rust-version = "1.65"
 authors = ["Alex Ostrovski <ostrovski.alex@gmail.com>"]
 license = "MIT OR Apache-2.0"
 keywords = ["format", "compile-time", "const"]

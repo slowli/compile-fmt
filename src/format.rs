@@ -5,31 +5,35 @@ use core::fmt::Alignment;
 
 use crate::utils::{assert_is_ascii, count_chars};
 
+/// Length of a string measured in bytes and chars.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct FormattedLen {
+pub struct StrLength {
+    /// Number of bytes the string occupies.
     pub bytes: usize,
+    /// Number of chars in the string.
     pub chars: usize,
 }
 
-impl FormattedLen {
-    pub const fn for_str(s: &str) -> Self {
+impl StrLength {
+    pub(crate) const fn for_str(s: &str) -> Self {
         Self {
             bytes: s.len(),
             chars: count_chars(s),
         }
     }
 
-    pub const fn for_char(c: char) -> Self {
+    pub(crate) const fn for_char(c: char) -> Self {
         Self {
             bytes: c.len_utf8(),
             chars: 1,
         }
     }
 
-    pub const fn ascii(bytes: usize) -> Self {
+    /// Creates a length in which both `bytes` and `chars` fields are set to the specified `value`.
+    pub const fn both(value: usize) -> Self {
         Self {
-            bytes,
-            chars: bytes,
+            bytes: value,
+            chars: value,
         }
     }
 }
@@ -129,7 +133,7 @@ pub struct Fmt<T: FormatArgument> {
     /// Byte capacity of the format without taking padding into account. This is a field
     /// rather than a method in `FormatArgument` because we wouldn't be able to call this method
     /// in `const fn`s.
-    capacity: FormattedLen,
+    capacity: StrLength,
     pub(crate) details: T::Details,
     pub(crate) pad: Option<Pad>,
 }
@@ -137,13 +141,10 @@ pub struct Fmt<T: FormatArgument> {
 /// Creates a default format for a type that has known bounded formatting width.
 pub const fn fmt<T>() -> Fmt<T>
 where
-    T: FormatArgument<Details = ()> + MaxWidth,
+    T: FormatArgument<Details = ()> + MaxLength,
 {
     Fmt {
-        capacity: FormattedLen {
-            bytes: T::MAX_WIDTH * T::MAX_BYTES_PER_CHAR,
-            chars: T::MAX_WIDTH,
-        },
+        capacity: T::MAX_LENGTH,
         details: (),
         pad: None,
     }
@@ -158,8 +159,8 @@ where
 pub const fn clip<'a>(clip_at: usize, using: &'static str) -> Fmt<&'a str> {
     assert!(clip_at > 0, "Clip width must be positive");
     Fmt {
-        capacity: FormattedLen {
-            bytes: clip_at * char::MAX_WIDTH + using.len(),
+        capacity: StrLength {
+            bytes: clip_at * char::MAX_LENGTH.bytes + using.len(),
             chars: clip_at + count_chars(using),
         },
         details: StrFormat { clip_at, using },
@@ -176,7 +177,7 @@ pub const fn clip_ascii<'a>(clip_at: usize, using: &'static str) -> Fmt<Ascii<'a
     assert!(clip_at > 0, "Clip width must be positive");
     assert_is_ascii(using);
     Fmt {
-        capacity: FormattedLen::ascii(clip_at + using.len()),
+        capacity: StrLength::both(clip_at + using.len()),
         details: StrFormat { clip_at, using },
         pad: None,
     }
@@ -269,17 +270,18 @@ pub struct StrFormat {
 }
 
 /// Type that has a known upper boundary for the formatted length.
-pub trait MaxWidth {
-    /// Upper boundary for the formatted length in bytes.
-    const MAX_WIDTH: usize;
+pub trait MaxLength {
+    /// Upper boundary for the formatted length in bytes and chars.
+    const MAX_LENGTH: StrLength;
 }
 
 macro_rules! impl_max_width_for_uint {
     ($($uint:ty),+) => {
         $(
-        impl MaxWidth for $uint {
-            const MAX_WIDTH: usize =
-                crate::ArgumentWrapper::new(Self::MAX).into_argument().formatted_len();
+        impl MaxLength for $uint {
+            const MAX_LENGTH: StrLength = StrLength::both(
+                crate::ArgumentWrapper::new(Self::MAX).into_argument().formatted_len(),
+            );
         }
 
         impl FormatArgument for $uint {
@@ -295,9 +297,10 @@ impl_max_width_for_uint!(u8, u16, u32, u64, u128, usize);
 macro_rules! impl_max_width_for_int {
     ($($int:ty),+) => {
         $(
-        impl MaxWidth for $int {
-            const MAX_WIDTH: usize =
-                crate::ArgumentWrapper::new(Self::MIN).into_argument().formatted_len();
+        impl MaxLength for $int {
+            const MAX_LENGTH: StrLength = StrLength::both(
+                crate::ArgumentWrapper::new(Self::MIN).into_argument().formatted_len(),
+            );
         }
 
         impl FormatArgument for $int {
@@ -310,8 +313,8 @@ macro_rules! impl_max_width_for_int {
 
 impl_max_width_for_int!(i8, i16, i32, i64, i128, isize);
 
-impl MaxWidth for char {
-    const MAX_WIDTH: usize = 4;
+impl MaxLength for char {
+    const MAX_LENGTH: StrLength = StrLength { bytes: 4, chars: 1 };
 }
 
 impl FormatArgument for char {
@@ -327,19 +330,19 @@ mod tests {
 
     #[test]
     fn max_length_bound_is_correct() {
-        assert_eq!(u8::MAX_WIDTH, u8::MAX.to_string().len());
-        assert_eq!(u16::MAX_WIDTH, u16::MAX.to_string().len());
-        assert_eq!(u32::MAX_WIDTH, u32::MAX.to_string().len());
-        assert_eq!(u64::MAX_WIDTH, u64::MAX.to_string().len());
-        assert_eq!(u128::MAX_WIDTH, u128::MAX.to_string().len());
-        assert_eq!(usize::MAX_WIDTH, usize::MAX.to_string().len());
+        assert_eq!(u8::MAX_LENGTH.bytes, u8::MAX.to_string().len());
+        assert_eq!(u16::MAX_LENGTH.bytes, u16::MAX.to_string().len());
+        assert_eq!(u32::MAX_LENGTH.bytes, u32::MAX.to_string().len());
+        assert_eq!(u64::MAX_LENGTH.bytes, u64::MAX.to_string().len());
+        assert_eq!(u128::MAX_LENGTH.bytes, u128::MAX.to_string().len());
+        assert_eq!(usize::MAX_LENGTH.bytes, usize::MAX.to_string().len());
 
-        assert_eq!(i8::MAX_WIDTH, i8::MIN.to_string().len());
-        assert_eq!(i16::MAX_WIDTH, i16::MIN.to_string().len());
-        assert_eq!(i32::MAX_WIDTH, i32::MIN.to_string().len());
-        assert_eq!(i64::MAX_WIDTH, i64::MIN.to_string().len());
-        assert_eq!(i128::MAX_WIDTH, i128::MIN.to_string().len());
-        assert_eq!(isize::MAX_WIDTH, isize::MIN.to_string().len());
+        assert_eq!(i8::MAX_LENGTH.bytes, i8::MIN.to_string().len());
+        assert_eq!(i16::MAX_LENGTH.bytes, i16::MIN.to_string().len());
+        assert_eq!(i32::MAX_LENGTH.bytes, i32::MIN.to_string().len());
+        assert_eq!(i64::MAX_LENGTH.bytes, i64::MIN.to_string().len());
+        assert_eq!(i128::MAX_LENGTH.bytes, i128::MIN.to_string().len());
+        assert_eq!(isize::MAX_LENGTH.bytes, isize::MIN.to_string().len());
     }
 
     #[test]

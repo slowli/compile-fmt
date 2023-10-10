@@ -103,7 +103,7 @@ mod utils;
 pub use crate::argument::{Argument, ArgumentWrapper};
 pub use crate::{
     argument::Ascii,
-    format::{clip, clip_ascii, fmt, Fmt, FormatArgument, MaxWidth},
+    format::{clip, clip_ascii, fmt, Fmt, FormatArgument, StrLength, MaxLength},
 };
 use crate::{format::StrFormat, utils::ClippedStr};
 
@@ -228,6 +228,16 @@ impl<const CAP: usize> CompileArgs<CAP> {
             str::from_utf8_unchecked(written_slice)
         }
     }
+}
+
+impl<const CAP: usize> FormatArgument for &CompileArgs<CAP> {
+    type Details = ();
+    const MAX_BYTES_PER_CHAR: usize = 4;
+}
+
+impl<const CAP: usize> MaxLength for &CompileArgs<CAP> {
+    const MAX_LENGTH: StrLength = StrLength::both(CAP);
+    // ^ Here, the byte length is exact and the char length is the pessimistic upper boundary.
 }
 
 #[cfg(doctest)]

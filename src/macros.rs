@@ -60,12 +60,27 @@
 /// ```
 #[macro_export]
 macro_rules! compile_args {
+    (capacity: $cap:expr, $($arg:expr $(=> $fmt:expr)?),+) => {{
+        const __CAPACITY: usize = $cap;
+        const _: () = {
+            let required_capacity = $crate::__compile_args_impl!(@total_capacity $($arg $(=> $fmt)?,)+);
+            let capacity = __CAPACITY;
+            $crate::compile_assert!(
+                capacity >= required_capacity,
+                "Insufficient capacity (", capacity => $crate::fmt::<usize>(), " bytes) provided \
+                 for the macro; it requires at least ", required_capacity => $crate::fmt::<usize>(), " bytes"
+            );
+        };
+        $crate::CompileArgs::<__CAPACITY>::format(&[
+            $($crate::ArgumentWrapper::new($arg)$(.with_fmt($fmt))?.into_argument(),)+
+        ]) as $crate::CompileArgs<__CAPACITY>
+        // ^ The type hint sometimes helps in const contexts
+    }};
     ($($arg:expr $(=> $fmt:expr)?),+) => {{
         const __CAPACITY: usize = $crate::__compile_args_impl!(@total_capacity $($arg $(=> $fmt)?,)+);
-        let __arguments: &[$crate::Argument] = &[
+        $crate::CompileArgs::<__CAPACITY>::format(&[
             $($crate::ArgumentWrapper::new($arg)$(.with_fmt($fmt))?.into_argument(),)+
-        ];
-        $crate::CompileArgs::<__CAPACITY>::format(__arguments) as $crate::CompileArgs<__CAPACITY>
+        ]) as $crate::CompileArgs<__CAPACITY>
         // ^ The type hint sometimes helps in const contexts
     }};
 }

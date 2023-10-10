@@ -181,3 +181,39 @@ const fn unwrap_result(res: Result<(), &str>) {
 fn using_panic() {
     unwrap_result(Err("operation not supported"));
 }
+
+#[test]
+fn formatting_enum() {
+    #[derive(Debug)]
+    enum Error {
+        Number(u64),
+        Tuple(usize, char),
+    }
+
+    type ErrorArgs = CompileArgs<54>;
+
+    impl Error {
+        const fn fmt(&self) -> ErrorArgs {
+            match *self {
+                Self::Number(number) => compile_args!(
+                    capacity: 54,
+                    "failed with number ", number => fmt::<u64>()
+                ),
+                Self::Tuple(pos, ch) => compile_args!(
+                    capacity: 54,
+                    "failed at position ", pos => fmt::<usize>(), " on char '", ch => fmt::<char>(), "'"
+                ),
+            }
+        }
+    }
+
+    let err = Error::Number(123).fmt();
+    let args = compile_args!("Runtime error: ", &err => fmt::<&ErrorArgs>());
+    assert_eq!(args.as_str(), "Runtime error: failed with number 123");
+    let err = Error::Tuple(78643, 'ß');
+    let args = compile_args!("Runtime error: ", &err.fmt() => fmt::<&ErrorArgs>());
+    assert_eq!(
+        args.as_str(),
+        "Runtime error: failed at position 78643 on char 'ß'"
+    );
+}

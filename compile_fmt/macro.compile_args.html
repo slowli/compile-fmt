@@ -1,0 +1,66 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Concatenates arguments in compile time."><title>compile_args in compile_fmt - Rust</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../static.files/rustdoc-47e7ab555ef2818a.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="compile_fmt" data-themes="" data-resource-suffix="" data-rustdoc-version="1.74.0-nightly (62ebe3a2b 2023-09-08)" data-channel="nightly" data-search-js="search-5d3eaacf19ebf04f.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-f194925aa375ae96.css" data-theme-dark-css="dark-1dd4d1ce031e15de.css" data-theme-ayu-css="ayu-49e58d069f567085.css" ><script src="../static.files/storage-db41da1a38ea3cb8.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-ef3a2de404864b0b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../static.files/light-f194925aa375ae96.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../static.files/dark-1dd4d1ce031e15de.css"><link rel="stylesheet" href="../static.files/noscript-cffde32267a19fd6.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc macro"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="logo-container" href="../compile_fmt/index.html"><img class="rust-logo" src="../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><h2></h2></nav><nav class="sidebar"><a class="logo-container" href="../compile_fmt/index.html"><img class="rust-logo" src="../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><div class="sidebar-elems"><h2><a href="index.html">In compile_fmt</a></h2></div></nav><main><div class="width-limiter"><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="main-heading"><h1>Macro <a href="index.html">compile_fmt</a>::<wbr><a class="macro" href="#">compile_args</a><button id="copy-path" title="Copy item path to clipboard"><img src="../static.files/clipboard-7571035ce49a181d.svg" width="19" height="18" alt="Copy item path"></button></h1><span class="out-of-band"><a class="src" href="../src/compile_fmt/macros.rs.html#96-115">source</a> · <button id="toggle-all-docs" title="collapse all docs">[<span>&#x2212;</span>]</button></span></div><pre class="rust item-decl"><span class="macro">macro_rules! </span>compile_args {
+    (capacity: <span class="macro-nonterminal">$cap</span>:expr, $(<span class="macro-nonterminal">$arg</span>:expr $(=&gt; <span class="macro-nonterminal">$fmt</span>:expr)<span class="question-mark">?</span>),+) =&gt; { ... };
+    ($(<span class="macro-nonterminal">$arg</span>:expr $(=&gt; <span class="macro-nonterminal">$fmt</span>:expr)<span class="question-mark">?</span>),+) =&gt; { ... };
+}</pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Concatenates arguments in compile time.</p>
+<h2 id="specifying-arguments"><a href="#specifying-arguments">Specifying arguments</a></h2>
+<p>Arguments to this macro must be comma-separated. The argument type must be supported; for now,
+the supported types are:</p>
+<ul>
+<li>Signed and unsigned integers (<code>u8</code>, <code>i8</code>, <code>u16</code>, <code>i16</code>, <code>u32</code>, <code>i32</code>, <code>u64</code>, <code>i64</code>, <code>u128</code>,
+<code>i128</code>, <code>usize</code>, <code>isize</code>)</li>
+<li>Strings (<code>&amp;str</code>)</li>
+<li><a href="struct.Ascii.html" title="struct compile_fmt::Ascii"><code>Ascii</code></a> strings</li>
+<li>Chars (<code>char</code>)</li>
+<li>References to <a href="struct.CompileArgs.html" title="struct compile_fmt::CompileArgs"><code>CompileArgs</code></a>.</li>
+</ul>
+<p>Due to how Rust type inference works, you might need to specify the type suffix for integer
+literals (e.g., <code>42_usize</code> instead of <code>42</code>).</p>
+<p>Optionally, an argument may specify its <a href="struct.Fmt.html" title="struct compile_fmt::Fmt">format</a> as <code>$arg =&gt; $fmt</code>.
+A format is mandatory if the argument is not a constant; e.g. if it is an argument or a local variable
+in a <code>const fn</code>.</p>
+<p>The value output by the macro is <a href="struct.CompileArgs.html" title="struct compile_fmt::CompileArgs"><code>CompileArgs</code></a>.</p>
+<h2 id="specifying-capacity"><a href="#specifying-capacity">Specifying capacity</a></h2>
+<p>You can specify capacity of the returned <code>CompileArgs</code> by prefacing arguments with <code>capacity: $cap,</code>.
+Here, <code>$cap</code> is a constant expression of type <code>usize</code>. The specified capacity must be greater or equal
+that the capacity inferred from the arguments; the macro will fail with a compilation error otherwise.</p>
+<h2 id="see-also"><a href="#see-also">See also</a></h2>
+<ul>
+<li><a href="macro.compile_panic.html" title="macro compile_fmt::compile_panic"><code>compile_panic!</code></a> provides a version of the <code>panic!</code> macro with support
+of dynamic arguments.</li>
+<li><a href="macro.compile_assert.html" title="macro compile_fmt::compile_assert"><code>compile_assert!</code></a> provides a version of the <code>assert!</code> macro with support
+of dynamic arguments.</li>
+</ul>
+<h2 id="examples"><a href="#examples">Examples</a></h2><h3 id="basic-usage"><a href="#basic-usage">Basic usage</a></h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">const </span>ARGS: CompileArgs&lt;<span class="number">9</span>&gt; = <span class="macro">compile_args!</span>(<span class="number">2_u32</span>, <span class="string">&quot; + &quot;</span>, <span class="number">2_u32</span>, <span class="string">&quot; = &quot;</span>, <span class="number">2_u32 </span>+ <span class="number">2</span>);
+<span class="macro">assert_eq!</span>(ARGS.as_str(), <span class="string">&quot;2 + 2 = 4&quot;</span>);</code></pre></div>
+<h3 id="usage-in-const-fn-with-dynamic-args"><a href="#usage-in-const-fn-with-dynamic-args">Usage in <code>const fn</code> with dynamic args</a></h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>compile_fmt::{compile_args, fmt};
+<span class="kw">use </span>std::fmt;
+
+<span class="kw">const fn </span>create_args(x: usize) -&gt; <span class="kw">impl </span>fmt::Display {
+    <span class="kw">let </span>args = <span class="macro">compile_args!</span>(
+        <span class="string">&quot;2 * x + 3 = &quot;</span>, <span class="number">2 </span>* x + <span class="number">3 </span>=&gt; fmt::&lt;usize&gt;()
+    );
+    <span class="comment">// ^ `args` are evaluated in compile time, but are not a constant.
+    // They can still be useful e.g. for creating compile-time panic messages.
+    </span><span class="macro">assert!</span>(x &lt; <span class="number">1000</span>, <span class="string">&quot;{}&quot;</span>, args.as_str());
+    args
+}
+
+<span class="kw">let </span>args = create_args(<span class="number">100</span>);
+<span class="macro">assert_eq!</span>(args.to_string(), <span class="string">&quot;2 * x + 3 = 203&quot;</span>);</code></pre></div>
+<h3 id="usage-with-explicit-capacity"><a href="#usage-with-explicit-capacity">Usage with explicit capacity</a></h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let </span>args = <span class="macro">compile_args!</span>(capacity: <span class="number">16</span>, <span class="string">&quot;Value: &quot;</span>, <span class="number">42_i32</span>);
+<span class="macro">assert_eq!</span>(args.as_str(), <span class="string">&quot;Value: 42&quot;</span>);</code></pre></div>
+<p>Insufficient specified capacity will lead to a compilation error:</p>
+
+<div class="example-wrap compile_fail"><a href="#" class="tooltip" title="This example deliberately fails to compile">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">let </span>args = <span class="macro">compile_args!</span>(capacity: <span class="number">4</span>, <span class="string">&quot;Value: &quot;</span>, <span class="number">42_i32</span>);</code></pre></div>
+<p>The error message will include details about the necessary capacity:</p>
+<div class="example-wrap"><pre class="language-text"><code>error[E0080]: evaluation of constant value failed
+   --&gt;
+    |
+    |     let args = compile_args!(capacity: 4, &quot;Value: &quot;, 42_i32);
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+the evaluated program panicked at &#39;Insufficient capacity (4 bytes)
+provided for `compile_args` macro; it requires at least 9 bytes&#39;
+</code></pre></div></div></details></section></div></main></body></html>

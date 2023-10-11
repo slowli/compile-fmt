@@ -1,0 +1,96 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Compile-time formatting and derived functionality (e.g., panics / assertions)."><title>compile_fmt - Rust</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../static.files/rustdoc-47e7ab555ef2818a.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="compile_fmt" data-themes="" data-resource-suffix="" data-rustdoc-version="1.74.0-nightly (62ebe3a2b 2023-09-08)" data-channel="nightly" data-search-js="search-5d3eaacf19ebf04f.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-f194925aa375ae96.css" data-theme-dark-css="dark-1dd4d1ce031e15de.css" data-theme-ayu-css="ayu-49e58d069f567085.css" ><script src="../static.files/storage-db41da1a38ea3cb8.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-ef3a2de404864b0b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../static.files/light-f194925aa375ae96.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../static.files/dark-1dd4d1ce031e15de.css"><link rel="stylesheet" href="../static.files/noscript-cffde32267a19fd6.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="logo-container" href="../compile_fmt/index.html"><img class="rust-logo" src="../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><h2></h2></nav><nav class="sidebar"><a class="logo-container" href="../compile_fmt/index.html"><img class="rust-logo" src="../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><h2 class="location"><a href="#">Crate compile_fmt</a></h2><div class="sidebar-elems"><ul class="block"><li class="version">Version 0.1.0</li><li><a id="all-types" href="all.html">All Items</a></li></ul><section><ul class="block"><li><a href="#macros">Macros</a></li><li><a href="#structs">Structs</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li></ul></section></div></nav><main><div class="width-limiter"><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="main-heading"><h1>Crate <a class="mod" href="#">compile_fmt</a><button id="copy-path" title="Copy item path to clipboard"><img src="../static.files/clipboard-7571035ce49a181d.svg" width="19" height="18" alt="Copy item path"></button></h1><span class="out-of-band"><a class="src" href="../src/compile_fmt/lib.rs.html#1-298">source</a> · <button id="toggle-all-docs" title="collapse all docs">[<span>&#x2212;</span>]</button></span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Compile-time formatting and derived functionality (e.g., panics / assertions).</p>
+<h2 id="what"><a href="#what">What?</a></h2>
+<p>This crate allows formatting values in compile time (e.g., in <code>const fn</code>s). The formatted values
+are not required to be constants; e.g., arguments or local vars in <code>const fn</code> can be formatted.</p>
+<p>Features:</p>
+<ul>
+<li>Zero dependencies.</li>
+<li>Unconditionally <code>#[no_std]</code>-compatible.</li>
+<li>The formatting logic is space-efficient; i.e., it allocates the least amount of bytes
+that can provably to be sufficient for all possible provided inputs. As a consequence, non-constant
+formatted args require a <a href="struct.Fmt.html" title="struct compile_fmt::Fmt">format specifier</a>.</li>
+<li>Does not rely on proc macros. This makes the library more lightweight.</li>
+</ul>
+<h2 id="why"><a href="#why">Why?</a></h2>
+<p>A guiding use case for the crate is richer dynamic compile-time panic messages. It can be used
+in other contexts as well (including in runtime).</p>
+<h2 id="limitations"><a href="#limitations">Limitations</a></h2>
+<ul>
+<li>Only a few types from the standard library can be formatted: integers, <code>char</code>s and <code>str</code>ings.</li>
+<li>Formatting specifiers do not support hex encoding, debug formatting etc.</li>
+<li>Padding logic assumes that any Unicode char has identical displayed width, which isn’t really
+true (e.g., there are chars that have zero width and instead combine with the previous char).
+The same assumption is made by the <code>std</code> padding logic.</li>
+</ul>
+<h2 id="alternatives-and-similar-tools"><a href="#alternatives-and-similar-tools">Alternatives and similar tools</a></h2>
+<ul>
+<li><a href="https://crates.io/crates/const_panic"><code>const_panic</code></a> provides functionality covering the guiding use case (compile-time panics).
+It supports more types and formats at the cost of being more complex. It also uses a different
+approach to compute produced message sizes.</li>
+<li><a href="https://crates.io/crates/const_format/"><code>const_format</code></a> provides general-purpose formatting of constant values. It doesn’t seem to support
+“dynamic” / non-constant args.</li>
+</ul>
+<h2 id="examples"><a href="#examples">Examples</a></h2><h3 id="basic-usage"><a href="#basic-usage">Basic usage</a></h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>compile_fmt::{compile_assert, fmt};
+
+<span class="kw">const </span>THRESHOLD: usize = <span class="number">42</span>;
+
+<span class="kw">const fn </span>check_value(value: usize) {
+    <span class="macro">compile_assert!</span>(
+        value &lt;= THRESHOLD,
+        <span class="string">&quot;Expected &quot;</span>, value =&gt; fmt::&lt;usize&gt;(), <span class="string">&quot; to not exceed &quot;</span>, THRESHOLD
+    );
+    <span class="comment">// main logic
+</span>}</code></pre></div>
+<p>Note the formatting spec produced with <a href="fn.fmt.html" title="fn compile_fmt::fmt"><code>fmt()</code></a>.</p>
+<h3 id="usage-with-dynamic-strings"><a href="#usage-with-dynamic-strings">Usage with dynamic strings</a></h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>compile_fmt::{compile_assert, clip};
+
+<span class="kw">const fn </span>check_str(s: <span class="kw-2">&amp;</span>str) {
+    <span class="kw">const </span>MAX_LEN: usize = <span class="number">16</span>;
+    <span class="macro">compile_assert!</span>(
+        s.len() &lt;= MAX_LEN,
+        <span class="string">&quot;String &#39;&quot;</span>, s =&gt; clip(MAX_LEN, <span class="string">&quot;…&quot;</span>), <span class="string">&quot;&#39; is too long; \
+         expected no more than &quot;</span>, MAX_LEN, <span class="string">&quot; bytes&quot;
+    </span>);
+    <span class="comment">// main logic
+</span>}</code></pre></div>
+<h3 id="printing-dynamically-sized-messages"><a href="#printing-dynamically-sized-messages">Printing dynamically-sized messages</a></h3>
+<p><code>compile_args!</code> allows specifying capacity of the produced message. This is particularly useful
+when formatting enums (e.g., to compile-format errors):</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug)]
+</span><span class="kw">enum </span>Error {
+    Number(u64),
+    Tuple(usize, char),
+}
+
+<span class="kw">type </span>ErrorArgs = CompileArgs&lt;<span class="number">55</span>&gt;;
+<span class="comment">// ^ 55 is the exact lower boundary on capacity. It&#39;s valid to specify
+// a greater value, e.g. 64.
+
+</span><span class="kw">impl </span>Error {
+    <span class="kw">const fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ErrorArgs {
+        <span class="kw">match </span><span class="kw-2">*</span><span class="self">self </span>{
+            <span class="self">Self</span>::Number(number) =&gt; <span class="macro">compile_args!</span>(
+                capacity: ErrorArgs::CAPACITY,
+                <span class="string">&quot;don&#39;t like number &quot;</span>, number =&gt; fmt::&lt;u64&gt;()
+            ),
+            <span class="self">Self</span>::Tuple(pos, ch) =&gt; <span class="macro">compile_args!</span>(
+                <span class="string">&quot;don&#39;t like char &#39;&quot;</span>, ch =&gt; fmt::&lt;char&gt;(), <span class="string">&quot;&#39; at position &quot;</span>,
+                pos =&gt; fmt::&lt;usize&gt;()
+            ),
+        }
+    }
+}
+
+<span class="comment">// `Error::fmt()` can be used as a building block for more complex messages:
+</span><span class="kw">let </span>err = Error::Tuple(<span class="number">1_234</span>, <span class="string">&#39;?&#39;</span>);
+<span class="kw">let </span>message = <span class="macro">compile_args!</span>(<span class="string">&quot;Operation failed: &quot;</span>, <span class="kw-2">&amp;</span>err.fmt() =&gt; fmt::&lt;<span class="kw-2">&amp;</span>ErrorArgs&gt;());
+<span class="macro">assert_eq!</span>(
+    message.as_str(),
+    <span class="string">&quot;Operation failed: don&#39;t like char &#39;?&#39; at position 1234&quot;
+</span>);</code></pre></div>
+<p>See docs for macros and format specifiers for more examples.</p>
+</div></details><h2 id="macros" class="small-section-header"><a href="#macros">Macros</a></h2><ul class="item-table"><li><div class="item-name"><a class="macro" href="macro.compile_args.html" title="macro compile_fmt::compile_args">compile_args</a></div><div class="desc docblock-short">Concatenates arguments in compile time.</div></li><li><div class="item-name"><a class="macro" href="macro.compile_assert.html" title="macro compile_fmt::compile_assert">compile_assert</a></div><div class="desc docblock-short">Version of the <a href="https://doc.rust-lang.org/nightly/core/macro.assert.html" title="macro core::assert"><code>assert!</code></a> macro with the ability to format args in compile time.</div></li><li><div class="item-name"><a class="macro" href="macro.compile_panic.html" title="macro compile_fmt::compile_panic">compile_panic</a></div><div class="desc docblock-short">Version of the <a href="https://doc.rust-lang.org/nightly/core/macro.panic.html" title="macro core::panic"><code>panic!</code></a> macro with the ability to format args in compile time.</div></li></ul><h2 id="structs" class="small-section-header"><a href="#structs">Structs</a></h2><ul class="item-table"><li><div class="item-name"><a class="struct" href="struct.Ascii.html" title="struct compile_fmt::Ascii">Ascii</a></div><div class="desc docblock-short">ASCII string wrapper.</div></li><li><div class="item-name"><a class="struct" href="struct.CompileArgs.html" title="struct compile_fmt::CompileArgs">CompileArgs</a></div><div class="desc docblock-short">Formatted string returned by the <a href="macro.compile_args.html" title="macro compile_fmt::compile_args"><code>compile_args!</code></a> macro, similar to <a href="https://doc.rust-lang.org/nightly/core/fmt/struct.Arguments.html" title="struct core::fmt::Arguments"><code>Arguments</code></a>.</div></li><li><div class="item-name"><a class="struct" href="struct.Fmt.html" title="struct compile_fmt::Fmt">Fmt</a></div><div class="desc docblock-short">Formatting specification for an <a href="crate::Argument"><code>Argument</code></a>.</div></li><li><div class="item-name"><a class="struct" href="struct.StrLength.html" title="struct compile_fmt::StrLength">StrLength</a></div><div class="desc docblock-short">Length of a string measured in bytes and chars.</div></li></ul><h2 id="traits" class="small-section-header"><a href="#traits">Traits</a></h2><ul class="item-table"><li><div class="item-name"><a class="trait" href="trait.FormatArgument.html" title="trait compile_fmt::FormatArgument">FormatArgument</a></div><div class="desc docblock-short">Type that can be formatted. Implemented for standard integer types, <code>&amp;str</code> and <code>char</code>.</div></li><li><div class="item-name"><a class="trait" href="trait.MaxLength.html" title="trait compile_fmt::MaxLength">MaxLength</a></div><div class="desc docblock-short">Type that has a known upper boundary for the formatted length.</div></li></ul><h2 id="functions" class="small-section-header"><a href="#functions">Functions</a></h2><ul class="item-table"><li><div class="item-name"><a class="fn" href="fn.clip.html" title="fn compile_fmt::clip">clip</a></div><div class="desc docblock-short">Creates a format that will clip the value to the specified max <strong>char</strong> width (not byte width!).
+If clipped, the end of the string will be replaced with the specified replacer, which can be empty.</div></li><li><div class="item-name"><a class="fn" href="fn.clip_ascii.html" title="fn compile_fmt::clip_ascii">clip_ascii</a></div><div class="desc docblock-short">Same as <a href="fn.clip.html" title="fn compile_fmt::clip"><code>clip()</code></a>, but for <a href="struct.Ascii.html" title="struct compile_fmt::Ascii"><code>Ascii</code></a> strings.</div></li><li><div class="item-name"><a class="fn" href="fn.fmt.html" title="fn compile_fmt::fmt">fmt</a></div><div class="desc docblock-short">Creates a default format for a type that has known bounded formatting width.</div></li></ul></section></div></main></body></html>

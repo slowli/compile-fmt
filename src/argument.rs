@@ -3,7 +3,7 @@
 use core::fmt;
 
 use crate::{
-    format::{Fmt, FormatArgument, StrLength, Pad, StrFormat},
+    format::{Fmt, FormatArgument, Pad, StrFormat, StrLength},
     utils::{assert_is_ascii, count_chars, ClippedStr},
     CompileArgs,
 };

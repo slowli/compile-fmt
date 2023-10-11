@@ -74,6 +74,47 @@
 //! }
 //!```
 //!
+//! ## Printing dynamically-sized messages
+//!
+//! `compile_args!` allows specifying capacity of the produced message. This is particularly useful
+//! when formatting enums (e.g., to compile-format errors):
+//!
+//! ```
+//! # use compile_fmt::{compile_args, fmt, CompileArgs};
+//! #[derive(Debug)]
+//! enum Error {
+//!     Number(u64),
+//!     Tuple(usize, char),
+//! }
+//!
+//! type ErrorArgs = CompileArgs<55>;
+//! // ^ 55 is the exact lower boundary on capacity. It's valid to specify
+//! // a greater value, e.g. 64.
+//!
+//! impl Error {
+//!     const fn fmt(&self) -> ErrorArgs {
+//!         match *self {
+//!             Self::Number(number) => compile_args!(
+//!                 capacity: ErrorArgs::CAPACITY,
+//!                 "don't like number ", number => fmt::<u64>()
+//!             ),
+//!             Self::Tuple(pos, ch) => compile_args!(
+//!                 "don't like char '", ch => fmt::<char>(), "' at position ",
+//!                 pos => fmt::<usize>()
+//!             ),
+//!         }
+//!     }
+//! }
+//!
+//! // `Error::fmt()` can be used as a building block for more complex messages:
+//! let err = Error::Tuple(1_234, '?');
+//! let message = compile_args!("Operation failed: ", &err.fmt() => fmt::<&ErrorArgs>());
+//! assert_eq!(
+//!     message.as_str(),
+//!     "Operation failed: don't like char '?' at position 1234"
+//! );
+//! ```
+//!
 //! See docs for macros and format specifiers for more examples.
 
 #![no_std]
@@ -103,7 +144,7 @@ mod utils;
 pub use crate::argument::{Argument, ArgumentWrapper};
 pub use crate::{
     argument::Ascii,
-    format::{clip, clip_ascii, fmt, Fmt, FormatArgument, MaxWidth},
+    format::{clip, clip_ascii, fmt, Fmt, FormatArgument, MaxLength, StrLength},
 };
 use crate::{format::StrFormat, utils::ClippedStr};
 
@@ -130,6 +171,19 @@ impl<const CAP: usize> AsRef<str> for CompileArgs<CAP> {
 }
 
 impl<const CAP: usize> CompileArgs<CAP> {
+    /// Capacity of these arguments in bytes.
+    pub const CAPACITY: usize = CAP;
+
+    #[doc(hidden)] // Implementation detail of the `compile_args` macro
+    #[track_caller]
+    pub const fn assert_capacity(required_capacity: usize) {
+        compile_assert!(
+            CAP >= required_capacity,
+            "Insufficient capacity (", CAP => fmt::<usize>(), " bytes) provided \
+             for `compile_args` macro; it requires at least ", required_capacity => fmt::<usize>(), " bytes"
+        );
+    }
+
     const fn new() -> Self {
         Self {
             buffer: [0_u8; CAP],
@@ -228,6 +282,16 @@ impl<const CAP: usize> CompileArgs<CAP> {
             str::from_utf8_unchecked(written_slice)
         }
     }
+}
+
+impl<const CAP: usize> FormatArgument for &CompileArgs<CAP> {
+    type Details = ();
+    const MAX_BYTES_PER_CHAR: usize = 4;
+}
+
+impl<const CAP: usize> MaxLength for &CompileArgs<CAP> {
+    const MAX_LENGTH: StrLength = StrLength::both(CAP);
+    // ^ Here, the byte length is exact and the char length is the pessimistic upper boundary.
 }
 
 #[cfg(doctest)]

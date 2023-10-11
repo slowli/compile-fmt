@@ -12,6 +12,7 @@
 /// - Strings (`&str`)
 /// - [`Ascii`](crate::Ascii) strings
 /// - Chars (`char`)
+/// - References to [`CompileArgs`](crate::CompileArgs).
 ///
 /// Due to how Rust type inference works, you might need to specify the type suffix for integer
 /// literals (e.g., `42_usize` instead of `42`).
@@ -21,6 +22,12 @@
 /// in a `const fn`.
 ///
 /// The value output by the macro is [`CompileArgs`](crate::CompileArgs).
+///
+/// # Specifying capacity
+///
+/// You can specify capacity of the returned `CompileArgs` by prefacing arguments with `capacity: $cap,`.
+/// Here, `$cap` is a constant expression of type `usize`. The specified capacity must be greater or equal
+/// that the capacity inferred from the arguments; the macro will fail with a compilation error otherwise.
 ///
 /// # See also
 ///
@@ -58,14 +65,51 @@
 /// let args = create_args(100);
 /// assert_eq!(args.to_string(), "2 * x + 3 = 203");
 /// ```
+///
+/// ## Usage with explicit capacity
+///
+/// ```
+/// # use compile_fmt::compile_args;
+/// let args = compile_args!(capacity: 16, "Value: ", 42_i32);
+/// assert_eq!(args.as_str(), "Value: 42");
+/// ```
+///
+/// Insufficient specified capacity will lead to a compilation error:
+///
+/// ```compile_fail
+/// # use compile_fmt::compile_args;
+/// let args = compile_args!(capacity: 4, "Value: ", 42_i32);
+/// ```
+///
+/// The error message will include details about the necessary capacity:
+///
+/// ```text
+/// error[E0080]: evaluation of constant value failed
+///    -->
+///     |
+///     |     let args = compile_args!(capacity: 4, "Value: ", 42_i32);
+///     |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/// the evaluated program panicked at 'Insufficient capacity (4 bytes)
+/// provided for `compile_args` macro; it requires at least 9 bytes'
+/// ```
 #[macro_export]
 macro_rules! compile_args {
+    (capacity: $cap:expr, $($arg:expr $(=> $fmt:expr)?),+) => {{
+        const __CAPACITY: usize = $cap;
+        const _: () = {
+            let required_capacity = $crate::__compile_args_impl!(@total_capacity $($arg $(=> $fmt)?,)+);
+            $crate::CompileArgs::<__CAPACITY>::assert_capacity(required_capacity);
+        };
+        $crate::CompileArgs::<__CAPACITY>::format(&[
+            $($crate::ArgumentWrapper::new($arg)$(.with_fmt($fmt))?.into_argument(),)+
+        ]) as $crate::CompileArgs<__CAPACITY>
+        // ^ The type hint sometimes helps in const contexts
+    }};
     ($($arg:expr $(=> $fmt:expr)?),+) => {{
         const __CAPACITY: usize = $crate::__compile_args_impl!(@total_capacity $($arg $(=> $fmt)?,)+);
-        let __arguments: &[$crate::Argument] = &[
+        $crate::CompileArgs::<__CAPACITY>::format(&[
             $($crate::ArgumentWrapper::new($arg)$(.with_fmt($fmt))?.into_argument(),)+
-        ];
-        $crate::CompileArgs::<__CAPACITY>::format(__arguments) as $crate::CompileArgs<__CAPACITY>
+        ]) as $crate::CompileArgs<__CAPACITY>
         // ^ The type hint sometimes helps in const contexts
     }};
 }

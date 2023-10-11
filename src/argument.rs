@@ -3,7 +3,7 @@
 use core::fmt;
 
 use crate::{
-    format::{Fmt, FormatArgument, FormattedLen, Pad, StrFormat},
+    format::{Fmt, FormatArgument, Pad, StrFormat, StrLength},
     utils::{assert_is_ascii, count_chars, ClippedStr},
     CompileArgs,
 };
@@ -17,22 +17,22 @@ enum ArgumentInner<'a> {
 }
 
 impl ArgumentInner<'_> {
-    const fn formatted_len(&self) -> FormattedLen {
+    const fn formatted_len(&self) -> StrLength {
         match self {
-            Self::Str(s, None) => FormattedLen::for_str(s),
+            Self::Str(s, None) => StrLength::for_str(s),
             Self::Str(s, Some(fmt)) => match ClippedStr::new(s, fmt.clip_at) {
-                ClippedStr::Full(_) => FormattedLen::for_str(s),
-                ClippedStr::Clipped(bytes) => FormattedLen {
+                ClippedStr::Full(_) => StrLength::for_str(s),
+                ClippedStr::Clipped(bytes) => StrLength {
                     bytes: bytes.len() + fmt.using.len(),
                     chars: fmt.clip_at + count_chars(fmt.using),
                 },
             },
-            Self::Char(c) => FormattedLen::for_char(*c),
+            Self::Char(c) => StrLength::for_char(*c),
             Self::Int(value) => {
                 let bytes = (*value < 0) as usize + log_10_ceil(value.unsigned_abs());
-                FormattedLen::ascii(bytes)
+                StrLength::both(bytes)
             }
-            Self::UnsignedInt(value) => FormattedLen::ascii(log_10_ceil(*value)),
+            Self::UnsignedInt(value) => StrLength::both(log_10_ceil(*value)),
         }
     }
 }
@@ -238,6 +238,16 @@ impl<'a> ArgumentWrapper<Ascii<'a>> {
         Argument {
             inner: ArgumentInner::Str(self.value.0, str_fmt),
             pad,
+        }
+    }
+}
+
+impl<'a, const CAP: usize> ArgumentWrapper<&'a CompileArgs<CAP>> {
+    /// Performs the conversion.
+    pub const fn into_argument(self) -> Argument<'a> {
+        Argument {
+            inner: ArgumentInner::Str(self.value.as_str(), None),
+            pad: None,
         }
     }
 }
@@ -455,7 +465,7 @@ mod tests {
                 using: "",
             }),
         );
-        assert_eq!(arg.formatted_len(), FormattedLen::for_str("te"));
+        assert_eq!(arg.formatted_len(), StrLength::for_str("te"));
 
         let arg = ArgumentInner::Str(
             "teßt",
@@ -464,7 +474,7 @@ mod tests {
                 using: "...",
             }),
         );
-        assert_eq!(arg.formatted_len(), FormattedLen::for_str("te..."));
+        assert_eq!(arg.formatted_len(), StrLength::for_str("te..."));
 
         let arg = ArgumentInner::Str(
             "teßt",
@@ -473,7 +483,7 @@ mod tests {
                 using: "…",
             }),
         );
-        assert_eq!(arg.formatted_len(), FormattedLen::for_str("te…"));
+        assert_eq!(arg.formatted_len(), StrLength::for_str("te…"));
 
         let arg = ArgumentInner::Str(
             "teßt",
@@ -482,7 +492,7 @@ mod tests {
                 using: "",
             }),
         );
-        assert_eq!(arg.formatted_len(), FormattedLen::for_str("teß"));
+        assert_eq!(arg.formatted_len(), StrLength::for_str("teß"));
 
         let arg = ArgumentInner::Str(
             "teßt",
@@ -491,7 +501,7 @@ mod tests {
                 using: "…",
             }),
         );
-        assert_eq!(arg.formatted_len(), FormattedLen::for_str("teß…"));
+        assert_eq!(arg.formatted_len(), StrLength::for_str("teß…"));
 
         let arg = ArgumentInner::Str(
             "teßt",
@@ -500,12 +510,12 @@ mod tests {
                 using: "-",
             }),
         );
-        assert_eq!(arg.formatted_len(), FormattedLen::for_str("teß-"));
+        assert_eq!(arg.formatted_len(), StrLength::for_str("teß-"));
 
         for clip_at in [4, 5, 16] {
             for using in ["", "...", "…"] {
                 let arg = ArgumentInner::Str("teßt", Some(StrFormat { clip_at, using }));
-                assert_eq!(arg.formatted_len(), FormattedLen::for_str("teßt"));
+                assert_eq!(arg.formatted_len(), StrLength::for_str("teßt"));
             }
         }
     }

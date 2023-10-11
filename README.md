@@ -76,6 +76,11 @@ See crate docs for more examples of usage.
 - [`const_format`] provides general-purpose formatting of constant values. It doesn't seem to support
   "dynamic" / non-constant args.
 
+## Contributing
+
+All contributions are welcome! See [the contributing guide](CONTRIBUTING.md) to help
+you get involved.
+
 ## License
 
 `compile-fmt` is licensed under either of [Apache License, Version 2.0](LICENSE-APACHE)

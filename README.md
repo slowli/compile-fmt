@@ -10,8 +10,14 @@
 
 This crate allows formatting values in compile time (e.g., in `const fn`s). The formatted values
 are not required to be constants; e.g., arguments or local vars in `const fn` can be formatted.
-The formatting logic is space-efficient; i.e., it allocates the least amount of bytes
-that can provably to be sufficient for all possible provided inputs.
+
+Features:
+
+- Zero dependencies.
+- Unconditionally `#[no_std]`-compatible.
+- The formatting logic is space-efficient; i.e., it allocates the least amount of bytes
+  that can provably to be sufficient for all possible provided inputs.
+- Does not rely on proc macros. This makes the library more lightweight.
 
 ## Why?
 
@@ -75,6 +81,11 @@ See crate docs for more examples of usage.
   approach to compute produced message sizes.
 - [`const_format`] provides general-purpose formatting of constant values. It doesn't seem to support
   "dynamic" / non-constant args.
+
+## Contributing
+
+All contributions are welcome! See [the contributing guide](CONTRIBUTING.md) to help
+you get involved.
 
 ## License
 

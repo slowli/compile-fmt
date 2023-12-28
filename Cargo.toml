@@ -5,6 +5,7 @@ edition = "2021"
 rust-version = "1.65"
 authors = ["Alex Ostrovski <ostrovski.alex@gmail.com>"]
 license = "MIT OR Apache-2.0"
+readme = "README.md"
 keywords = ["format", "compile-time", "const"]
 categories = ["value-formatting", "development-tools", "no-std"]
 description = "Compile-time formatting and derived functionality (e.g., panics / assertions)"

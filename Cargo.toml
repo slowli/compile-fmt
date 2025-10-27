@@ -12,6 +12,6 @@ description = "Compile-time formatting and derived functionality (e.g., panics /
 repository = "https://github.com/slowli/compile-fmt"
 
 [dev-dependencies]
-doc-comment = "0.3.3"
+doc-comment = "0.3.4"
 rand = "0.8"
 version-sync = "0.9"

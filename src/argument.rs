@@ -346,10 +346,10 @@ impl ArgumentWrapper<char> {
 mod tests {
     use rand::{rngs::StdRng, Rng, SeedableRng};
 
-    use core::fmt::Alignment;
-    use std::string::ToString;
-
     use super::*;
+    use core::fmt::Alignment;
+    use rand::distr::uniform::{UniformSampler, UniformUsize};
+    use std::string::ToString;
 
     #[test]
     fn length_estimation_for_small_ints() {
@@ -390,7 +390,7 @@ mod tests {
 
         let mut rng = StdRng::seed_from_u64(RNG_SEED);
         for _ in 0..SAMPLE_COUNT {
-            let i: u32 = rng.gen();
+            let i: u32 = rng.random();
             assert_eq!(
                 ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
@@ -398,7 +398,7 @@ mod tests {
             );
         }
         for _ in 0..SAMPLE_COUNT {
-            let i: u64 = rng.gen();
+            let i: u64 = rng.random();
             assert_eq!(
                 ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
@@ -406,15 +406,17 @@ mod tests {
             );
         }
         for _ in 0..SAMPLE_COUNT {
-            let i: u128 = rng.gen();
+            let i: u128 = rng.random();
             assert_eq!(
                 ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
                 "Formatted length estimated incorrectly for {i}"
             );
         }
+
+        let sampler = UniformUsize::new_inclusive(0, usize::MAX).unwrap();
         for _ in 0..SAMPLE_COUNT {
-            let i: usize = rng.gen();
+            let i = sampler.sample(&mut rng);
             assert_eq!(
                 ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
@@ -423,7 +425,7 @@ mod tests {
         }
 
         for _ in 0..SAMPLE_COUNT {
-            let i: i32 = rng.gen();
+            let i: i32 = rng.random();
             assert_eq!(
                 ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
@@ -431,7 +433,7 @@ mod tests {
             );
         }
         for _ in 0..SAMPLE_COUNT {
-            let i: i64 = rng.gen();
+            let i: i64 = rng.random();
             assert_eq!(
                 ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
@@ -439,15 +441,16 @@ mod tests {
             );
         }
         for _ in 0..SAMPLE_COUNT {
-            let i: i128 = rng.gen();
+            let i: i128 = rng.random();
             assert_eq!(
                 ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),
                 "Formatted length estimated incorrectly for {i}"
             );
         }
+
         for _ in 0..SAMPLE_COUNT {
-            let i: isize = rng.gen();
+            let i = sampler.sample(&mut rng).cast_signed();
             assert_eq!(
                 ArgumentWrapper::new(i).into_argument().formatted_len(),
                 i.to_string().len(),

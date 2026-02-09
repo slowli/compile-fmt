@@ -13,5 +13,5 @@ repository = "https://github.com/slowli/compile-fmt"
 
 [dev-dependencies]
 doc-comment = "0.3.3"
-rand = "0.9"
+rand = "0.10"
 version-sync = "0.9"

@@ -144,7 +144,7 @@ mod utils;
 pub use crate::argument::{Argument, ArgumentWrapper};
 pub use crate::{
     argument::Ascii,
-    format::{clip, clip_ascii, fmt, Fmt, FormatArgument, MaxLength, StrLength},
+    format::{Fmt, FormatArgument, MaxLength, StrLength, clip, clip_ascii, fmt},
 };
 use crate::{format::StrFormat, utils::ClippedStr};
 

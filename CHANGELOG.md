@@ -5,6 +5,10 @@ The project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- Bump minimum supported Rust version to 1.85 and switch to 2024 edition.
+
 ## 0.1.0 - 2023-12-28
 
 The initial release of `compile-fmt`.

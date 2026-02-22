@@ -3,9 +3,9 @@
 use core::fmt;
 
 use crate::{
-    format::{Fmt, FormatArgument, Pad, StrFormat, StrLength},
-    utils::{assert_is_ascii, count_chars, ClippedStr},
     CompileArgs,
+    format::{Fmt, FormatArgument, Pad, StrFormat, StrLength},
+    utils::{ClippedStr, assert_is_ascii, count_chars},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -344,7 +344,7 @@ impl ArgumentWrapper<char> {
 
 #[cfg(test)]
 mod tests {
-    use rand::{rngs::StdRng, Rng, SeedableRng};
+    use rand::{RngExt, SeedableRng, rngs::StdRng};
 
     use super::*;
     use core::fmt::Alignment;

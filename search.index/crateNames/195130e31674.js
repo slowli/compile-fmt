@@ -1,0 +1,1 @@
+rd_("kcompile_fmt")

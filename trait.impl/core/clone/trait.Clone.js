@@ -1,0 +1,9 @@
+(function() {
+    var implementors = Object.fromEntries([["compile_fmt",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"struct\" href=\"compile_fmt/struct.StrLength.html\" title=\"struct compile_fmt::StrLength\">StrLength</a>"],["impl&lt;'a&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"struct\" href=\"compile_fmt/struct.Ascii.html\" title=\"struct compile_fmt::Ascii\">Ascii</a>&lt;'a&gt;"],["impl&lt;T: <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> + <a class=\"trait\" href=\"compile_fmt/trait.FormatArgument.html\" title=\"trait compile_fmt::FormatArgument\">FormatArgument</a>&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"struct\" href=\"compile_fmt/struct.Fmt.html\" title=\"struct compile_fmt::Fmt\">Fmt</a>&lt;T&gt;<div class=\"where\">where\n    T::<a class=\"associatedtype\" href=\"compile_fmt/trait.FormatArgument.html#associatedtype.Details\" title=\"type compile_fmt::FormatArgument::Details\">Details</a>: <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a>,</div>"]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":57,"fragment_lengths":[1426]}

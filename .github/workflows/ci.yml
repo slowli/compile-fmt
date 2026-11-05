@@ -8,14 +8,14 @@ on:
 
 env:
   msrv: 1.85.0
-  nightly: nightly-2025-11-02
+  nightly: nightly-2026-11-04
 
 jobs:
   build-msrv:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -23,7 +23,7 @@ jobs:
           toolchain: ${{ env.msrv }}
 
       - name: Cache cargo build
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: target
           key: ${{ runner.os }}-msrv-cargo-${{ hashFiles('**/Cargo.lock') }}
@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -47,10 +47,10 @@ jobs:
         uses: baptiste0928/cargo-install@v2
         with:
           crate: cargo-deny
-          version: "^0.18.5"
+          version: "^0.20"
 
       - name: Cache cargo build
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
@@ -72,7 +72,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -81,47 +81,46 @@ jobs:
           targets: thumbv7m-none-eabi
 
       - name: Cache cargo build
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: target
           key: ${{ runner.os }}-nostd-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-nostd-cargo
 
-      - name: Build library
+      - name: Build library (nostd)
         run: cargo build -p compile-fmt --lib --target thumbv7m-none-eabi -Z avoid-dev-deps
-
-  document:
-    if: github.event_name == 'push'
-    needs:
-      - build
-      - build-msrv
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.nightly }}
-
-      - name: Cache cargo build
-        uses: actions/cache@v3
-        with:
-          path: target
-          key: ${{ runner.os }}-document-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-document-cargo
 
       - name: Build docs
         run: |
           cargo clean --doc && \
-          cargo rustdoc -p compile-fmt -- --cfg docsrs
+          cargo rustdoc -p compile-fmt -- -D warnings --cfg docsrs
 
-      - name: Deploy
-        uses: JamesIves/github-pages-deploy-action@v4
+      - name: Setup Pages
+        id: pages
+        uses: actions/configure-pages@v5
+        # if: github.event_name == 'push' && github.ref_type == 'branch'
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+        # if: github.event_name == 'push' && github.ref_type == 'branch'
         with:
-          branch: gh-pages
-          folder: target/doc
-          single-commit: true
+          path: 'target/doc'
+
+  deploy-pages:
+    needs:
+      - build
+      - build-msrv
+      - build-nostd
+    # if: github.event_name == 'push' && github.ref_type == 'branch'
+    permissions:
+      pages: write
+      id-token: write
+
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

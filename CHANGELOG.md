@@ -9,6 +9,10 @@ The project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html)
 
 - Bump minimum supported Rust version to 1.85 and switch to 2024 edition.
 
+### Fixed
+
+- Fix compilation error when using `compile_panic!` macro in the expression position.
+
 ## 0.1.0 - 2023-12-28
 
 The initial release of `compile-fmt`.

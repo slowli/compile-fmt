@@ -147,7 +147,7 @@ macro_rules! __compile_args_impl {
 #[macro_export]
 macro_rules! compile_panic {
     ($($arg:tt)+) => {
-        ::core::panic!("{}", $crate::compile_args!($($arg)+).as_str());
+        ::core::panic!("{}", $crate::compile_args!($($arg)+).as_str())
     };
 }
 
@@ -184,4 +184,21 @@ macro_rules! compile_assert {
             ::core::panic!("{}", $crate::compile_args!($($arg)+).as_str());
         }
     }};
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::fmt;
+
+    #[test]
+    fn compile_panic_macro_does_not_trigger_warnings() {
+        const fn match_on_value(value: u8) {
+            match value {
+                0 | 1 => { /* ok */ }
+                _ => compile_panic!("invalid value: ", value => fmt::<u8>()),
+            }
+        }
+
+        match_on_value(1);
+    }
 }
